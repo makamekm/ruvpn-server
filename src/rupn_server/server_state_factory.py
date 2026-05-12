@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from rupn_server.config import ServerConfig
 from rupn_server.room_generator import RoomGenerator
-from rupn_server.server_state import ServerState, ServerStateStore
+from rupn_server.server_state import ServerState
+from rupn_server.server_state_store import ServerStateStore
 
 
 class ServerStateFactory:

@@ -6,8 +6,8 @@ from rupn_server.config import ServerConfig
 from rupn_server.connection_token_encoder import ConnectionTokenEncoder
 from rupn_server.process_waiter import ProcessWaiter
 from rupn_server.room_generator import RoomGenerator
-from rupn_server.server_state import ServerStateStore
 from rupn_server.server_state_factory import ServerStateFactory
+from rupn_server.server_state_store import ServerStateStore
 from rupn_server.single_server_process import SingleServerProcess
 
 
