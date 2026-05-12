@@ -1,12 +1,12 @@
 # RUPN Server
 
-Публичный Docker-контейнер для запуска своего RUPN сервера.
+Public Docker container for running your own RUPN server.
 
-Архитектура: один контейнер = один серверный инстанс. Здесь нет приватного backend, SQLite, Telegram bot, reconciler, пула нод и мультисессий. При старте контейнер генерирует или переиспользует одну пару `room/key`, запускает ровно один `olcrtc -mode srv` и печатает JWT-ссылку для подключения.
+Architecture: one container = one server instance. This repository does not include the private backend, SQLite, Telegram bot, reconciler, node pool, or multi-session orchestration. On startup, the container generates or reuses a single `room/key` pair, starts exactly one `olcrtc -mode srv` process, and prints a JWT connection link.
 
 Flow: `ENV → [Validate config] → (missing/invalid env) → [Generate or load room/key] → (olcrtc gen error) → [Start one server process] → (runtime error) → [Print JWT link] → Ready`
 
-## Быстрый запуск
+## Quick start
 
 ```bash
 docker run --rm -it \
@@ -15,17 +15,17 @@ docker run --rm -it \
   makame/rupn-server:latest
 ```
 
-В логах будет:
+The logs will contain:
 
 ```text
 RUPN server started
-RUPN_CONNECT_JWT=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+RUPN_CONNECT_JWT=eyJhbG...VCJ9...
 RUPN_CONNECT_URI=olcrtc://...
 ```
 
-Для приложения используй `RUPN_CONNECT_JWT`.
+Use `RUPN_CONNECT_JWT` in the client app.
 
-## Запуск через Docker Compose
+## Docker Compose
 
 ```bash
 mkdir ruvpn-server
@@ -36,21 +36,21 @@ docker compose up -d
 docker logs -f rupn-server
 ```
 
-## Env переменные
+## Environment variables
 
-- `RUPN_CARRIER`: carrier для комнаты. По умолчанию `wbstream`.
-- `RUPN_TRANSPORT`: транспорт. По умолчанию `datachannel`.
-- `RUPN_LINK`: тип линка. По умолчанию `direct`.
-- `RUPN_DNS`: DNS upstream. По умолчанию `1.1.1.1:53`.
-- `RUPN_CLIENT_ID`: client id, который попадёт в ссылку. По умолчанию `android-01`.
-- `RUPN_JWT_SECRET`: секрет подписи JWT. По умолчанию `rupn` для совместимости с Android-клиентом.
-- `RUPN_DEBUG`: `true/false`, включает debug logs olcrtc.
-- `RUPN_ROTATE_ON_START`: `true/false`. По умолчанию `false`, поэтому ссылка сохраняется в volume и переживает restart.
-- `RUPN_SOCKS_PROXY` + `RUPN_SOCKS_PROXY_PORT`: опциональный SOCKS5 proxy для egress сервера.
+- `RUPN_CARRIER`: room carrier. Default: `wbstream`.
+- `RUPN_TRANSPORT`: transport. Default: `datachannel`.
+- `RUPN_LINK`: link type. Default: `direct`.
+- `RUPN_DNS`: upstream DNS. Default: `1.1.1.1:53`.
+- `RUPN_CLIENT_ID`: client id embedded into the connection link. Default: `android-01`.
+- `RUPN_JWT_SECRET`: JWT signing secret. Default: `rupn` for compatibility with the Android client.
+- `RUPN_DEBUG`: `true/false`, enables olcrtc debug logs.
+- `RUPN_ROTATE_ON_START`: `true/false`. Default: `false`, so the connection link is stored in the volume and survives restarts.
+- `RUPN_SOCKS_PROXY` + `RUPN_SOCKS_PROXY_PORT`: optional upstream SOCKS5 proxy for server egress.
 
-## Обновить ссылку
+## Rotate the connection link
 
-Если нужно выпустить новую ссылку:
+To issue a new connection link:
 
 ```bash
 docker run --rm -it \
@@ -59,14 +59,14 @@ docker run --rm -it \
   makame/rupn-server:latest
 ```
 
-Или удалить volume:
+Or remove the volume:
 
 ```bash
 docker compose down -v
 docker compose up -d
 ```
 
-## Сборка локально
+## Build locally
 
 ```bash
 git clone https://github.com/makamekm/ruvpn-server.git
@@ -75,9 +75,9 @@ docker build -t makame/rupn-server:latest .
 docker run --rm -it -v rupn-server-state:/var/lib/rupn-server makame/rupn-server:latest
 ```
 
-## Безопасность
+## Security
 
-- Не публикуй `RUPN_CONNECT_URI`: там лежит сырой ключ.
-- Для пользователя отдавай `RUPN_CONNECT_JWT`.
-- Если меняешь `RUPN_JWT_SECRET`, Android-клиент должен знать тот же секрет, иначе JWT не пройдёт проверку.
-- Volume `/var/lib/rupn-server` содержит `server.json` с ключом, держи его приватным.
+- Do not publish `RUPN_CONNECT_URI`: it contains the raw key.
+- Share `RUPN_CONNECT_JWT` with users.
+- If you change `RUPN_JWT_SECRET`, the Android client must use the same secret, otherwise JWT validation will fail.
+- The `/var/lib/rupn-server` volume contains `server.json` with the key. Keep it private.
