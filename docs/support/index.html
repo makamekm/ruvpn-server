@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Support — RUPN Server</title>
+    <meta name="description" content="Support information for RUPN Server.">
+    <link rel="canonical" href="https://makamekm.github.io/ruvpn-server/support/">
+    <link rel="stylesheet" href="../assets/styles.css">
+  </head>
+  <body>
+    <header class="nav">
+      <div class="container nav-inner">
+        <a class="brand" href="../"><span class="emblem">★</span><span>RUPN Server</span></a>
+        <nav class="nav-links"><a href="../">Home</a><a href="../privacy/">Privacy</a><a href="../eula/">EULA</a><a href="https://github.com/makamekm/ruvpn-server/issues">Issues</a></nav>
+      </div>
+    </header>
+    <main class="container policy-page">
+      <p class="updated">Support URL</p>
+      <h1>Support</h1>
+      <p>RUPN Server is an open-source Docker image for running a single personal server instance. For help, use the channels below.</p>
+      <h2>GitHub Issues</h2>
+      <p>Report bugs, deployment issues, and documentation problems at <a href="https://github.com/makamekm/ruvpn-server/issues">github.com/makamekm/ruvpn-server/issues</a>.</p>
+      <h2>Before opening an issue</h2>
+      <ul>
+        <li>Check the container logs for the <code>RUPN server started</code> marker.</li>
+        <li>Confirm that Docker can pull <code>makame/rupn-server:latest</code>.</li>
+        <li>Do not publish <code>RUPN_CONNECT_URI</code> or the volume contents.</li>
+      </ul>
+      <h2>Useful command</h2>
+      <code class="command">docker logs rupn-server</code>
+    </main>
+  </body>
+</html>

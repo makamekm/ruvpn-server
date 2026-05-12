@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RUPN Server — Personal VPN Infrastructure</title>
+    <meta name="description" content="Run a single-instance RUPN server in Docker and generate a signed connection link for your client app.">
+    <link rel="canonical" href="https://makamekm.github.io/ruvpn-server/">
+    <link rel="stylesheet" href="./assets/styles.css">
+  </head>
+  <body>
+    <header class="nav">
+      <div class="container nav-inner">
+        <a class="brand" href="./" aria-label="RUPN Server home"><span class="emblem">★</span><span>RUPN Server</span></a>
+        <nav class="nav-links" aria-label="Primary navigation">
+          <a href="#deploy">Deploy</a>
+          <a href="#docs">Console URLs</a>
+          <a href="./support/">Support</a>
+          <a href="https://github.com/makamekm/ruvpn-server">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="container hero-grid">
+          <div>
+            <div class="kicker">Soviet futurism for private networks</div>
+            <h1>Launch your own RUPN server</h1>
+            <p class="lead">A public, Docker-first, single-instance server for generating one signed RUPN connection link. Built for operators who want a small, auditable deployment without private orchestration services.</p>
+            <div class="actions">
+              <a class="button primary" href="#deploy">Deploy in one command</a>
+              <a class="button" href="https://github.com/makamekm/ruvpn-server">View source</a>
+            </div>
+          </div>
+          <div class="orbit-card" aria-label="Soviet futurist satellite illustration">
+            <div class="satellite" aria-hidden="true"></div>
+            <code class="terminal">docker run --rm -it --name rupn-server -v rupn-server-state:/var/lib/rupn-server makame/rupn-server:latest</code>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="deploy">
+        <div class="container">
+          <div class="section-header">
+            <h2>One container. One server.</h2>
+            <p>RUPN Server intentionally avoids multi-tenant backend logic. The runtime validates environment variables, creates or loads a single room/key pair, starts one server process, and prints a JWT connection token.</p>
+          </div>
+          <div class="cards">
+            <article class="card">
+              <span class="card-number">1</span>
+              <h3>Start Docker</h3>
+              <p>Run the published image with a persistent volume so the generated connection link survives restarts.</p>
+              <code class="command">docker run --rm -it --name rupn-server -v rupn-server-state:/var/lib/rupn-server makame/rupn-server:latest</code>
+            </article>
+            <article class="card">
+              <span class="card-number">2</span>
+              <h3>Copy JWT</h3>
+              <p>The container prints <strong>RUPN_CONNECT_JWT</strong>. Use this value in the client app. Do not share the raw URI publicly.</p>
+              <code class="command">RUPN_CONNECT_JWT=eyJhbGciOiJIUzI1NiIs...</code>
+            </article>
+            <article class="card">
+              <span class="card-number">3</span>
+              <h3>Keep it private</h3>
+              <p>The Docker volume stores the server key. Treat it as private infrastructure state.</p>
+              <code class="command">/var/lib/rupn-server/server.json</code>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="docs">
+        <div class="container">
+          <div class="section-header">
+            <h2>Console-ready URLs</h2>
+            <p>Use these public URLs for Google Play Console and Apple App Store Connect metadata.</p>
+          </div>
+          <div class="doc-grid">
+            <a class="doc-card" href="./">
+              <h3>Marketing URL</h3>
+              <p>Product landing page and deployment overview.</p>
+            </a>
+            <a class="doc-card" href="./support/">
+              <h3>Support URL</h3>
+              <p>Help, issue reporting, and operational guidance.</p>
+            </a>
+            <a class="doc-card" href="./privacy/">
+              <h3>Privacy Policy</h3>
+              <p>Data handling statement for app review.</p>
+            </a>
+            <a class="doc-card" href="./eula/">
+              <h3>EULA</h3>
+              <p>End-user license agreement.</p>
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container footer-inner">
+        <span>© 2026 RUPN Server. Open-source infrastructure for personal VPN deployments.</span>
+        <span><a href="./privacy/">Privacy</a> · <a href="./eula/">EULA</a> · <a href="./support/">Support</a></span>
+      </div>
+    </footer>
+  </body>
+</html>
