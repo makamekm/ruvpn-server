@@ -15,14 +15,15 @@ class ServerStateFactory:
     def get_or_create(self) -> ServerState:
         if not self.config.rotate_on_start:
             existing = self.store.load()
-            if existing is not None:
+            if existing is not None and existing.connection_type == self.config.connection_type.name:
                 return existing
         state = ServerState(
-            room_id=self.generator.generate(),
+            room_id=self.generator.generate(carrier=self.config.connection_type.carrier),
             key_hex=self.store.new_key_hex(),
             client_id=self.config.client_id,
-            carrier=self.config.carrier,
-            transport=self.config.transport,
+            carrier=self.config.connection_type.carrier,
+            transport=self.config.connection_type.transport,
+            connection_type=self.config.connection_type.name,
         )
         self.store.save(state)
         return state

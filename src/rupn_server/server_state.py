@@ -10,6 +10,7 @@ class ServerState:
     client_id: str
     carrier: str
     transport: str
+    connection_type: str
 
     @property
     def connection_uri(self) -> str:

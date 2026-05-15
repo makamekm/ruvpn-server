@@ -19,11 +19,25 @@ The logs will contain:
 
 ```text
 RUPN server started
+RUPN_CONNECTION_TYPE=wbstream
 RUPN_CONNECT_JWT=eyJhbG...VCJ9...
 RUPN_CONNECT_URI=olcrtc://...
 ```
 
 Use `RUPN_CONNECT_JWT` in the client app.
+
+## Quick start with Telemost room
+
+```bash
+docker run --rm -it \
+  --name rupn-server \
+  -e RUPN_CONNECTION_TYPE=telemost \
+  -e RUPN_TELEMOST_ROOM_ID=123456789 \
+  -v rupn-server-state:/var/lib/rupn-server \
+  makame/rupn-server:latest
+```
+
+Replace `123456789` with the room id from the Telemost link.
 
 ## Docker Compose
 
@@ -38,10 +52,11 @@ docker logs -f rupn-server
 
 ## Environment variables
 
-- `RUPN_CARRIER`: room carrier. Default: `wbstream`.
-- `RUPN_TRANSPORT`: transport. Default: `datachannel`.
+- `RUPN_CONNECTION_TYPE`: connection profile. Allowed: `wbstream`, `telemost`. Default: `wbstream`. It selects carrier/transport automatically (`wbstream/datachannel` or `telemost/vp8channel`).
 - `RUPN_LINK`: link type. Default: `direct`.
-- `RUPN_DNS`: upstream DNS. Default: `1.1.1.1:53`.
+- `RUPN_DNS`: upstream DNS. Default: first nameserver from `/etc/resolv.conf`.
+- `RUPN_TELEMOST_ROOM_ID`: existing Telemost room id for `RUPN_CONNECTION_TYPE=telemost`. If set, the server uses it instead of creating a room through the factory.
+- `RUPN_TELEMOST_ROOM_FACTORY_URL`: Telemost room factory URL for `RUPN_CONNECTION_TYPE=telemost`. Default: `http://127.0.0.1:8787`.
 - `RUPN_CLIENT_ID`: client id embedded into the connection link. Default: `android-01`.
 - `RUPN_JWT_SECRET`: JWT signing secret. Default: `rupn` for compatibility with the Android client.
 - `RUPN_DEBUG`: `true/false`, enables olcrtc debug logs.

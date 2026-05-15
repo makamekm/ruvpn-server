@@ -21,6 +21,7 @@ def main() -> int:
         token = ConnectionTokenEncoder(config.jwt_secret).encode(state.connection_uri)
         process = SingleServerProcess(config, state).start()
         print("RUPN server started", flush=True)
+        print(f"RUPN_CONNECTION_TYPE={state.connection_type}", flush=True)
         print(f"RUPN_CONNECT_JWT={token}", flush=True)
         print(f"RUPN_CONNECT_URI={state.connection_uri}", flush=True)
         return ProcessWaiter(process).wait()

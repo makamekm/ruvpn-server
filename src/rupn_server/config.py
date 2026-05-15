@@ -4,18 +4,24 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from rupn_server.connection_type_profile import ConnectionTypeProfile
+from rupn_server.connection_type_registry import ConnectionTypeRegistry
+
 
 @dataclass(frozen=True)
 class ServerConfig:
     olcrtc_bin: Path
     data_dir: Path
     state_file: Path
+    connection_type: ConnectionTypeProfile
     carrier: str
     transport: str
     link: str
     dns: str
     client_id: str
     jwt_secret: str
+    telemost_room_id: str
+    telemost_room_factory_url: str
     debug: bool
     rotate_on_start: bool
     socks_proxy: str
@@ -25,16 +31,20 @@ class ServerConfig:
     def load() -> "ServerConfig":
         data_dir = Path(_env("RUPN_DATA_DIR", "/var/lib/rupn-server")).expanduser()
         state_file = Path(_env("RUPN_STATE_FILE", str(data_dir / "server.json"))).expanduser()
+        connection_type = ConnectionTypeRegistry.resolve(_env("RUPN_CONNECTION_TYPE", ConnectionTypeRegistry.default().name))
         return ServerConfig(
             olcrtc_bin=Path(_env("OLCRTC_BIN", "/usr/local/bin/olcrtc")).expanduser(),
             data_dir=data_dir,
             state_file=state_file,
-            carrier=_env("RUPN_CARRIER", "wbstream"),
-            transport=_env("RUPN_TRANSPORT", "datachannel"),
+            connection_type=connection_type,
+            carrier=connection_type.carrier,
+            transport=connection_type.transport,
             link=_env("RUPN_LINK", "direct"),
-            dns=_env("RUPN_DNS", "1.1.1.1:53"),
+            dns=_env("RUPN_DNS", ""),
             client_id=_env("RUPN_CLIENT_ID", "android-01"),
             jwt_secret=_env("RUPN_JWT_SECRET", "rupn"),
+            telemost_room_id=_env("RUPN_TELEMOST_ROOM_ID", ""),
+            telemost_room_factory_url=_env("RUPN_TELEMOST_ROOM_FACTORY_URL", "http://127.0.0.1:8787"),
             debug=_env_bool("RUPN_DEBUG", False),
             rotate_on_start=_env_bool("RUPN_ROTATE_ON_START", False),
             socks_proxy=_env("RUPN_SOCKS_PROXY", ""),
@@ -48,6 +58,8 @@ class ServerConfig:
             raise ValueError("RUPN_CARRIER is required")
         if not self.transport:
             raise ValueError("RUPN_TRANSPORT is required")
+        if self.connection_type.name == "telemost" and not self.telemost_room_id and not self.telemost_room_factory_url:
+            raise ValueError("RUPN_TELEMOST_ROOM_ID or RUPN_TELEMOST_ROOM_FACTORY_URL is required for telemost")
         if not self.client_id:
             raise ValueError("RUPN_CLIENT_ID is required")
         if not self.jwt_secret:
