@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 
 from rupn_server.config import ServerConfig
+from rupn_server.server_dns_resolver import ServerDnsResolver
 from rupn_server.server_state import ServerState
 
 
@@ -29,10 +30,17 @@ class SingleServerProcess:
             "-link",
             self.config.link,
             "-dns",
-            self.config.dns,
+            ServerDnsResolver.resolve(self.config.dns),
             "-data",
             str(self.config.data_dir),
         ]
+        if self.state.transport == "vp8channel":
+            command.extend([
+                "-vp8-fps",
+                str(self.state.vp8_options.fps),
+                "-vp8-batch",
+                str(self.state.vp8_options.batch),
+            ])
         if self.config.socks_proxy:
             command.extend(["-socks-proxy", self.config.socks_proxy, "-socks-proxy-port", str(self.config.socks_proxy_port)])
         if self.config.debug:

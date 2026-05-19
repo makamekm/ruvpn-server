@@ -5,6 +5,7 @@ import subprocess
 from rupn_server.config import ServerConfig
 from rupn_server.server_dns_resolver import ServerDnsResolver
 from rupn_server.telemost_room_factory_client import TelemostRoomFactoryClient
+from rupn_server.wbstream_room_id_generator import WbstreamRoomIdGenerator
 
 
 class RoomGenerator:
@@ -17,6 +18,8 @@ class RoomGenerator:
             if self.config.telemost_room_id:
                 return self.config.telemost_room_id
             return TelemostRoomFactoryClient(self.config.telemost_room_factory_url).create_room_id()
+        if selected_carrier == "wbstream":
+            return WbstreamRoomIdGenerator.generate()
         self.config.data_dir.mkdir(parents=True, exist_ok=True)
         result = subprocess.run(
             [

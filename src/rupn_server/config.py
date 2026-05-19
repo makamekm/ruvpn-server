@@ -6,6 +6,7 @@ from pathlib import Path
 
 from rupn_server.connection_type_profile import ConnectionTypeProfile
 from rupn_server.connection_type_registry import ConnectionTypeRegistry
+from rupn_server.vp8_channel_options import Vp8ChannelOptions
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,7 @@ class ServerConfig:
     jwt_secret: str
     telemost_room_id: str
     telemost_room_factory_url: str
+    vp8_options: Vp8ChannelOptions
     debug: bool
     rotate_on_start: bool
     socks_proxy: str
@@ -32,6 +34,7 @@ class ServerConfig:
         data_dir = Path(_env("RUPN_DATA_DIR", "/var/lib/rupn-server")).expanduser()
         state_file = Path(_env("RUPN_STATE_FILE", str(data_dir / "server.json"))).expanduser()
         connection_type = ConnectionTypeRegistry.resolve(_env("RUPN_CONNECTION_TYPE", ConnectionTypeRegistry.default().name))
+        vp8_defaults = Vp8ChannelOptions.defaults()
         return ServerConfig(
             olcrtc_bin=Path(_env("OLCRTC_BIN", "/usr/local/bin/olcrtc")).expanduser(),
             data_dir=data_dir,
@@ -45,6 +48,10 @@ class ServerConfig:
             jwt_secret=_env("RUPN_JWT_SECRET", "rupn"),
             telemost_room_id=_env("RUPN_TELEMOST_ROOM_ID", ""),
             telemost_room_factory_url=_env("RUPN_TELEMOST_ROOM_FACTORY_URL", "http://127.0.0.1:8787"),
+            vp8_options=Vp8ChannelOptions.bounded(
+                fps=_env_int("RUPN_VP8_FPS", vp8_defaults.fps),
+                batch=_env_int("RUPN_VP8_BATCH", vp8_defaults.batch),
+            ),
             debug=_env_bool("RUPN_DEBUG", False),
             rotate_on_start=_env_bool("RUPN_ROTATE_ON_START", False),
             socks_proxy=_env("RUPN_SOCKS_PROXY", ""),
