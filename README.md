@@ -19,19 +19,20 @@ The logs will contain:
 
 ```text
 RUPN server started
-RUPN_CONNECTION_TYPE=wbstream
+RUPN_CONNECTION_TYPE=telemost
 RUPN_CONNECT_JWT=eyJhbG...VCJ9...
 RUPN_CONNECT_URI=olcrtc://...
 ```
 
 Use `RUPN_CONNECT_JWT` in the client app.
 
-## Quick start with Telemost room
+## Quick start with a fixed Telemost room
+
+`telemost` is the default connection type. Set `RUPN_TELEMOST_ROOM_ID` only when you want to pin the server to an existing Telemost room instead of letting the room factory create one.
 
 ```bash
 docker run --rm -it \
   --name rupn-server \
-  -e RUPN_CONNECTION_TYPE=telemost \
   -e RUPN_TELEMOST_ROOM_ID=123456789 \
   -v rupn-server-state:/var/lib/rupn-server \
   makame/rupn-server:latest
