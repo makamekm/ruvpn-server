@@ -11,7 +11,7 @@ class ConnectionTypeRegistry:
 
     @classmethod
     def default(cls) -> ConnectionTypeProfile:
-        return cls._profiles["wbstream"]
+        return cls._profiles["telemost"]
 
     @classmethod
     def names(cls) -> tuple[str, ...]:

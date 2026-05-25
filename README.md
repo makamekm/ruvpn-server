@@ -52,7 +52,7 @@ docker logs -f rupn-server
 
 ## Environment variables
 
-- `RUPN_CONNECTION_TYPE`: connection profile. Allowed: `wbstream`, `telemost`. Default: `wbstream`. It selects carrier/transport automatically (`wbstream/datachannel` or `telemost/vp8channel`).
+- `RUPN_CONNECTION_TYPE`: connection profile. Allowed: `wbstream`, `telemost`. Default: `telemost`. It selects carrier/transport automatically (`wbstream/datachannel` or `telemost/vp8channel`).
 - `RUPN_LINK`: link type. Default: `direct`.
 - `RUPN_DNS`: upstream DNS. Default: first nameserver from `/etc/resolv.conf`.
 - `RUPN_TELEMOST_ROOM_ID`: existing Telemost room id for `RUPN_CONNECTION_TYPE=telemost`. If set, the server uses it instead of creating a room through the factory.

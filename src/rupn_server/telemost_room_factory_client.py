@@ -21,6 +21,17 @@ class TelemostRoomFactoryClient:
         try:
             with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
                 payload = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as error:
+            body = error.read().decode("utf-8", errors="replace")
+            try:
+                payload = json.loads(body) if body else {}
+            except json.JSONDecodeError:
+                payload = {}
+            code = str(payload.get("error") or "").strip()
+            message = str(payload.get("message") or body or error).strip()
+            if error.code == 401 or code == "telemost_auth_required":
+                raise RuntimeError("telemost_auth_required: войдите в Yandex Telemost в noVNC room-factory") from error
+            raise RuntimeError(f"telemost_room_factory_unavailable: HTTP {error.code}: {message}") from error
         except urllib.error.URLError as error:
             raise RuntimeError(f"telemost_room_factory_unavailable: {error}") from error
         room_url = str(payload.get("roomUrl", "")).strip()
