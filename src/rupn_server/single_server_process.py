@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+from typing import Any
 
 from rupn_server.config import ServerConfig
 from rupn_server.server_dns_resolver import ServerDnsResolver
@@ -12,7 +13,7 @@ class SingleServerProcess:
         self.config = config
         self.state = state
 
-    def start(self) -> subprocess.Popen[str]:
+    def command(self) -> list[str]:
         command = [
             str(self.config.olcrtc_bin),
             "-mode",
@@ -42,7 +43,15 @@ class SingleServerProcess:
                 str(self.state.vp8_options.batch),
             ])
         if self.config.socks_proxy:
-            command.extend(["-socks-proxy", self.config.socks_proxy, "-socks-proxy-port", str(self.config.socks_proxy_port)])
+            command.extend([
+                "-socks-proxy",
+                self.config.socks_proxy,
+                "-socks-proxy-port",
+                str(self.config.socks_proxy_port),
+            ])
         if self.config.debug:
             command.append("-debug")
-        return subprocess.Popen(command, text=True)
+        return command
+
+    def start(self, **popen_kwargs: Any) -> subprocess.Popen[str]:
+        return subprocess.Popen(self.command(), text=True, **popen_kwargs)

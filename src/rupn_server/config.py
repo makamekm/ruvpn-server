@@ -28,6 +28,8 @@ class ServerConfig:
     rotate_on_start: bool
     socks_proxy: str
     socks_proxy_port: int
+    bad_after_seconds: float
+    restart_backoff_seconds: float
 
     @staticmethod
     def load() -> "ServerConfig":
@@ -56,6 +58,8 @@ class ServerConfig:
             rotate_on_start=_env_bool("RUPN_ROTATE_ON_START", False),
             socks_proxy=_env("RUPN_SOCKS_PROXY", ""),
             socks_proxy_port=_env_int("RUPN_SOCKS_PROXY_PORT", 0),
+            bad_after_seconds=_env_float("RUPN_BAD_AFTER_SECONDS", 0.0),
+            restart_backoff_seconds=_env_float("RUPN_RESTART_BACKOFF_SECONDS", 2.0),
         )
 
     def validate(self) -> None:
@@ -73,6 +77,8 @@ class ServerConfig:
             raise ValueError("RUPN_JWT_SECRET is required")
         if bool(self.socks_proxy) != bool(self.socks_proxy_port):
             raise ValueError("RUPN_SOCKS_PROXY and RUPN_SOCKS_PROXY_PORT must be set together")
+        if self.restart_backoff_seconds < 0:
+            raise ValueError("RUPN_RESTART_BACKOFF_SECONDS must be non-negative")
 
 
 def _env(name: str, default: str) -> str:
@@ -91,3 +97,10 @@ def _env_int(name: str, default: int) -> int:
     if value is None or value.strip() == "":
         return default
     return int(value)
+
+
+def _env_float(name: str, default: float) -> float:
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return default
+    return float(value)

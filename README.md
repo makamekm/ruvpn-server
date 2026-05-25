@@ -2,9 +2,9 @@
 
 Public Docker container for running your own RUPN server.
 
-Architecture: one container = one server instance. This repository does not include the private backend, SQLite, Telegram bot, reconciler, node pool, or multi-session orchestration. On startup, the container generates or reuses a single `room/key` pair, starts exactly one `olcrtc -mode srv` process, and prints a JWT connection link.
+Architecture: one container = one server instance. This repository does not include the private backend, SQLite, Telegram bot, reconciler, node pool, or multi-session orchestration. On startup, the container generates or reuses a single `room/key` pair, starts exactly one `olcrtc -mode srv` process, supervises it, and prints a JWT connection link.
 
-Flow: `ENV → [Validate config] → (missing/invalid env) → [Generate or load room/key] → (room generation error) → [Start one server process] → (runtime error) → [Print JWT link] → Ready`
+Flow: `ENV → [Validate config] → (missing/invalid env) → [Generate or load room/key] → (room generation error) → [Print JWT link] → [Supervise one server process] → (process exit/bad marker) → [Restart olcrtc] → Ready`
 
 ## Quick start
 
@@ -65,6 +65,8 @@ docker logs -f rupn-server
 - `RUPN_DEBUG`: `true/false`, enables olcrtc debug logs.
 - `RUPN_ROTATE_ON_START`: `true/false`. Default: `false`, so the connection link is stored in the volume and survives restarts.
 - `RUPN_SOCKS_PROXY` + `RUPN_SOCKS_PROXY_PORT`: optional upstream SOCKS5 proxy for server egress.
+- `RUPN_BAD_AFTER_SECONDS`: optional stale-log watchdog. Default: `0` disables bad-marker restarts. When set above zero, `ws read error` or `failed to connect link` can restart `olcrtc` after that many seconds. Telemost `publisher/subscriber state: closed` is not treated as fatal by itself.
+- `RUPN_RESTART_BACKOFF_SECONDS`: delay before restarting `olcrtc` after process exit. Default: `2`.
 
 ## Rotate the connection link
 
