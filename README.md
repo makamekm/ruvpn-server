@@ -66,6 +66,8 @@ docker logs -f rupn-server
 - `RUPN_ROTATE_ON_START`: `true/false`. Default: `false`, so the connection link is stored in the volume and survives restarts.
 - `RUPN_SOCKS_PROXY` + `RUPN_SOCKS_PROXY_PORT`: optional upstream SOCKS5 proxy for server egress.
 - `RUPN_BAD_AFTER_SECONDS`: optional stale-log watchdog. Default: `0` disables bad-marker restarts. When set above zero, `ws read error` or `failed to connect link` can restart `olcrtc` after that many seconds. Telemost `publisher/subscriber state: closed` is not treated as fatal by itself.
+- `RUPN_VP8_INGRESS_FROZEN_AFTER_SECONDS`: optional VP8 health watchdog for sessions that already saw inbound frames, then `out_frames` keeps growing while `in_frames` stops. Default: `0` disables this restart path.
+- `RUPN_VP8_ZERO_INGRESS_AFTER_SECONDS`: optional VP8 health watchdog for sessions that reached a VP8 peer/KCP marker but still have `in_frames=0` while `out_frames` grows. Default: `0` disables this restart path.
 - `RUPN_RESTART_BACKOFF_SECONDS`: delay before restarting `olcrtc` after process exit. Default: `2`.
 
 ## Rotate the connection link

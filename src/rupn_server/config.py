@@ -29,6 +29,8 @@ class ServerConfig:
     socks_proxy: str
     socks_proxy_port: int
     bad_after_seconds: float
+    vp8_ingress_frozen_after_seconds: float
+    vp8_zero_ingress_after_seconds: float
     restart_backoff_seconds: float
 
     @staticmethod
@@ -59,6 +61,8 @@ class ServerConfig:
             socks_proxy=_env("RUPN_SOCKS_PROXY", ""),
             socks_proxy_port=_env_int("RUPN_SOCKS_PROXY_PORT", 0),
             bad_after_seconds=_env_float("RUPN_BAD_AFTER_SECONDS", 0.0),
+            vp8_ingress_frozen_after_seconds=_env_float("RUPN_VP8_INGRESS_FROZEN_AFTER_SECONDS", 0.0),
+            vp8_zero_ingress_after_seconds=_env_float("RUPN_VP8_ZERO_INGRESS_AFTER_SECONDS", 0.0),
             restart_backoff_seconds=_env_float("RUPN_RESTART_BACKOFF_SECONDS", 2.0),
         )
 
@@ -79,6 +83,10 @@ class ServerConfig:
             raise ValueError("RUPN_SOCKS_PROXY and RUPN_SOCKS_PROXY_PORT must be set together")
         if self.restart_backoff_seconds < 0:
             raise ValueError("RUPN_RESTART_BACKOFF_SECONDS must be non-negative")
+        if self.vp8_ingress_frozen_after_seconds < 0:
+            raise ValueError("RUPN_VP8_INGRESS_FROZEN_AFTER_SECONDS must be non-negative")
+        if self.vp8_zero_ingress_after_seconds < 0:
+            raise ValueError("RUPN_VP8_ZERO_INGRESS_AFTER_SECONDS must be non-negative")
 
 
 def _env(name: str, default: str) -> str:
