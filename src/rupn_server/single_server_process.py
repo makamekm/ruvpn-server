@@ -25,7 +25,7 @@ class SingleServerProcess:
             "-id",
             self.state.room_id,
             "-client-id",
-            self.state.client_id,
+            self._server_client_id(self.state.client_id),
             "-key",
             self.state.key_hex,
             "-link",
@@ -52,6 +52,12 @@ class SingleServerProcess:
         if self.config.debug:
             command.append("-debug")
         return command
+
+    @staticmethod
+    def _server_client_id(client_id: str) -> str:
+        # VP8 uses directional client/server binding tokens. The URI keeps the
+        # client identity; the server process must use the matching srv- role.
+        return client_id if client_id.startswith("srv-") else f"srv-{client_id}"
 
     def start(self, **popen_kwargs: Any) -> subprocess.Popen[str]:
         return subprocess.Popen(self.command(), text=True, **popen_kwargs)
