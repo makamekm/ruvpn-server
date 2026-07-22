@@ -63,7 +63,13 @@ docker compose up -d
 
 ## JWT, key, and device identity
 
-By default, every container/service start generates a random 256-bit client key and a random device name. Therefore every restart prints a new `RUPN_CONNECT_JWT`, even when the state volume is preserved. Internal `olcrtc` worker restarts reuse the current in-memory identity; rotation happens when the Python/container service starts.
+### Will a service restart create a new JWT?
+
+Yes by default. Every container/service start generates a random 256-bit client key and a random device name, then prints a new `RUPN_CONNECT_JWT`. This happens even when the Docker state volume is preserved.
+
+Re-import the newly printed `RUPN_CONNECT_JWT` into the mobile client after every `docker restart`, `docker compose up -d` recreate, host reboot, or service restart unless you pinned the credentials through environment variables.
+
+Internal `olcrtc` worker restarts made by the supervisor do not change the JWT: they reuse the current in-memory identity. JWT rotation happens when the Python/container service process starts.
 
 Set both values when a stable JWT is required:
 
