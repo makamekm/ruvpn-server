@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from rupn_server.config import ServerConfig
 from rupn_server.room_generator import RoomGenerator
 from rupn_server.server_state import ServerState
@@ -13,19 +15,33 @@ class ServerStateFactory:
         self.generator = generator
 
     def get_or_create(self) -> ServerState:
-        existing = None if self.config.rotate_on_start else self.store.load()
-        if existing is not None and existing.connection_type != self.config.connection_type.name:
-            existing = None
+        existing = self.store.load()
+        if existing is not None and existing.connection_type == self.config.connection_type.name:
+            return self._with_runtime_options(existing)
         state = ServerState(
-            room_id=self.config.telemost_room_id or (existing.room_id if existing is not None else self.generator.generate(carrier=self.config.connection_type.carrier)),
-            key_hex=self.config.key_hex or self.store.new_key_hex(),
-            client_id=self.config.client_id or self.store.new_device_name(),
+            room_id=self.generator.generate(carrier=self.config.connection_type.carrier),
+            key_hex=self.config.client_key,
+            client_id=self.config.client_id,
             carrier=self.config.connection_type.carrier,
             transport=self.config.connection_type.transport,
             connection_type=self.config.connection_type.name,
             vp8_fps=self.config.vp8_options.fps,
             vp8_batch=self.config.vp8_options.batch,
         )
-        if state != existing:
-            self.store.save(state)
+        self.store.save(state)
         return state
+
+    def _with_runtime_options(self, state: ServerState) -> ServerState:
+        updated = replace(
+            state,
+            room_id=self.config.telemost_room_id or state.room_id,
+            key_hex=self.config.client_key,
+            client_id=self.config.client_id,
+            carrier=self.config.connection_type.carrier,
+            transport=self.config.connection_type.transport,
+            vp8_fps=self.config.vp8_options.fps,
+            vp8_batch=self.config.vp8_options.batch,
+        )
+        if updated != state:
+            self.store.save(updated)
+        return updated

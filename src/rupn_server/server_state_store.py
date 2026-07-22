@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import secrets
 from dataclasses import asdict
 from pathlib import Path
@@ -34,7 +35,10 @@ class ServerStateStore:
     def save(self, state: ServerState) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = self.path.with_suffix(".tmp")
-        tmp_path.write_text(json.dumps(asdict(state), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        tmp_path.unlink(missing_ok=True)
+        fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps(asdict(state), ensure_ascii=False, indent=2) + "\n")
         tmp_path.replace(self.path)
         self.path.chmod(0o600)
 

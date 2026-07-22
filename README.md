@@ -2,7 +2,7 @@
 
 Self-hosted single-room RUPN server. One container runs and supervises one `olcrtc -mode srv` process and prints the JWT that RUPN clients import.
 
-The image contains the current RUPN `olcrtc` server runtime with Telemost VP8 epoch/direction recovery fixes and is published for `linux/amd64` and `linux/arm64`.
+The image contains the current RUPN `olcrtc` server runtime with Telemost VP8 recovery fixes and is published for `linux/amd64` and `linux/arm64`.
 
 ## Requirements
 
@@ -61,15 +61,28 @@ docker compose pull
 docker compose up -d
 ```
 
-## Credentials, JWT, and room changes
+## JWT, key, and device identity
 
-`/var/lib/rupn-server/server.json` stores the last generated key/device metadata for the current container process. Keep the volume private.
+By default, every container/service start generates a random 256-bit client key and a random device name. Therefore every restart prints a new `RUPN_CONNECT_JWT`, even when the state volume is preserved. Internal `olcrtc` worker restarts reuse the current in-memory identity; rotation happens when the Python/container service starts.
 
-- If `RUPN_KEY_HEX` and `RUPN_DEVICE_NAME` are empty, every Docker/service restart generates a fresh key, fresh device name, and therefore a new `RUPN_CONNECT_JWT`.
-- Internal `olcrtc` restarts by the supervisor reuse the same in-memory state and do not change the JWT until the container process itself restarts.
-- Set `RUPN_KEY_HEX` and `RUPN_DEVICE_NAME` to keep the same JWT across Docker/service restarts.
-- Changing `RUPN_TELEMOST_ROOM` updates the room used in the next printed JWT.
-- `RUPN_ROTATE_ON_START=true` still forces a new room when no fixed room is configured; env-pinned key/device values always win.
+Set both values when a stable JWT is required:
+
+```bash
+docker run -d \
+  --name rupn-server \
+  --restart unless-stopped \
+  -e 'RUPN_TELEMOST_ROOM=https://telemost.yandex.ru/j/12345678901234' \
+  -e 'RUPN_DEVICE_NAME=Maxim iPhone' \
+  -e 'RUPN_CLIENT_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' \
+  -v rupn-server-state:/var/lib/rupn-server \
+  makame/rupn-server:latest
+```
+
+Generate a key with `openssl rand -hex 32`. If either variable is omitted, that value is regenerated on the next service start and the JWT changes. `RUPN_ROTATE_ON_START=true` forces both values to rotate even when configured, without changing a persisted/fixed room.
+
+`RUPN_KEY_HEX` is supported as a legacy alias for `RUPN_CLIENT_KEY`; `RUPN_CLIENT_ID` is supported as a legacy alias for `RUPN_DEVICE_NAME`. The new names take precedence.
+
+`/var/lib/rupn-server/server.json` stores the current identity and room metadata for inspection. It is replaced from env or regenerated at every service start. Keep the volume private.
 
 ## Configuration
 
@@ -81,14 +94,15 @@ docker compose up -d
 | `RUPN_LINK` | `direct` | olcrtc link implementation. |
 | `RUPN_DNS` | container resolver | Upstream DNS, with optional `:port`. |
 | `RUPN_VP8_FPS` | `60` | VP8 frame rate; bounded to `1..60`. |
-| `RUPN_VP8_BATCH` | `32` | VP8 batch size; bounded to `32..64` for the current client/server contract. |
-| `RUPN_KEY_HEX` | empty | Optional fixed 32-byte connection key as 64 hex chars. Empty means generate a random key on every container process start. |
-| `RUPN_DEVICE_NAME` | empty | Optional fixed client/device id embedded into the URI. Empty means generate a random `device-...` id on every container process start. |
-| `RUPN_CLIENT_ID` | empty | Legacy alias for `RUPN_DEVICE_NAME`; used only when `RUPN_DEVICE_NAME` is empty. |
+| `RUPN_VP8_BATCH` | `32` | VP8 batch size; bounded to `32..64`. |
+| `RUPN_DEVICE_NAME` | random | Device identity embedded into the URI; 1–128 characters without URI delimiters or controls. |
+| `RUPN_CLIENT_KEY` | random | 256-bit key as exactly 64 hexadecimal characters. |
+| `RUPN_CLIENT_ID` | empty | Legacy alias for `RUPN_DEVICE_NAME`. |
+| `RUPN_KEY_HEX` | empty | Legacy alias for `RUPN_CLIENT_KEY`. |
 | `RUPN_JWT_SECRET` | `rupn` | JWT wrapper secret required by compatible clients. |
 | `RUPN_DEBUG` | `false` | Enable verbose olcrtc logs. |
 | `RUPN_PRINT_RAW_URI` | `false` | Print the secret-bearing raw `olcrtc://` URI. |
-| `RUPN_ROTATE_ON_START` | `false` | Ignore persisted room metadata at startup when no fixed room is configured. Env-pinned key/device values still win. |
+| `RUPN_ROTATE_ON_START` | `false` | Force random key and device name even when both are configured. |
 | `RUPN_RESTART_BACKOFF_SECONDS` | `2` | Delay after an unexpected olcrtc process exit. |
 | `RUPN_SOCKS_PROXY` | empty | Optional upstream SOCKS5 host. |
 | `RUPN_SOCKS_PROXY_PORT` | `0` | SOCKS5 port; must be set together with host. |
@@ -96,14 +110,7 @@ docker compose up -d
 
 ### Restart watchdogs
 
-The process is always restarted after an actual exit. Bad-log restarts stay disabled by default. VP8 dataplane recovery is enabled by default for the standalone Telemost room path because Telemost can report a remote video track while `vp8channel` ingress remains stuck at zero.
-
-When the logs look like this, the container restarts `olcrtc` after the zero-ingress window and then backs off before another health restart:
-
-```text
-telemost remote video track: codec=video/VP8 ...
-vp8channel stats: out_frames=... in_frames=0 outbound_queue=0/4096
-```
+The process is always restarted after an actual exit. Bad-log restarts stay disabled by default. VP8 dataplane recovery is enabled by default because Telemost can expose a remote video track while ingress remains stuck at zero.
 
 | Variable | Default |
 |---|---:|
@@ -114,7 +121,7 @@ vp8channel stats: out_frames=... in_frames=0 outbound_queue=0/4096
 | `RUPN_VP8_ZERO_INGRESS_AFTER_SECONDS` | `30` |
 | `RUPN_VP8_RESTART_BACKOFF_SECONDS` | `600` |
 
-Set `RUPN_ENABLE_VP8_RESTART_WATCHDOG=false` only when you explicitly want to disable dataplane self-heal.
+Set `RUPN_ENABLE_VP8_RESTART_WATCHDOG=false` to disable dataplane self-heal.
 
 ## Optional room factory
 
@@ -122,21 +129,15 @@ The public image does not include browser login or room creation. If you operate
 
 ## Build locally
 
-The repository includes current static `olcrtc` binaries for both supported architectures:
-
 ```bash
 git clone https://github.com/makamekm/ruvpn-server.git
 cd ruvpn-server
 docker build --build-arg TARGETARCH=amd64 -t makame/rupn-server:local .
-docker run --rm \
-  -e 'RUPN_TELEMOST_ROOM=https://telemost.yandex.ru/j/12345678901234' \
-  -v rupn-server-state:/var/lib/rupn-server \
-  makame/rupn-server:local
 ```
 
 ## Security
 
-- Share `RUPN_CONNECT_JWT`, not `RUPN_CONNECT_URI` or `server.json`.
-- Do not publish the state volume.
+- Treat `RUPN_CONNECT_JWT` as a bearer secret: its payload contains the connection URI and key.
+- Do not publish `server.json` or the state volume.
 - Do not expose a Docker socket or privileged mode; this container needs neither.
 - Pin a released image digest instead of `latest` when reproducibility matters.
