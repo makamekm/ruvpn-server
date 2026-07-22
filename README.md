@@ -1,33 +1,20 @@
 # RUPN Server
 
-Self-hosted single-room RUPN server. One container runs and supervises one `olcrtc -mode srv` process and prints the JWT that RUPN clients import.
+Self-hosted RUPN server runtime. The image supervises one `olcrtc -mode srv` worker and prints the JWT that RUPN clients import.
 
 The image contains the current RUPN `olcrtc` server runtime with Telemost VP8 recovery fixes and is published for `linux/amd64` and `linux/arm64`.
 
 ## Requirements
 
-- A Linux server with Docker and outbound internet access.
+- A Linux host with Docker and outbound internet access.
 - A Telemost room. Create a meeting in Telemost and copy its invite URL.
 - A RUPN client compatible with `telemost/vp8channel`.
 
-No ports need to be published: the server establishes outbound connections to Telemost and the configured DNS resolver.
+No ports need to be published: the container establishes outbound connections to Telemost and the configured DNS resolver.
 
 ## Quick start
 
-Paste the complete Telemost URL or only the numeric room id:
-
-```bash
-docker run -d \
-  --name rupn-server \
-  --restart unless-stopped \
-  -e 'RUPN_TELEMOST_ROOM=https://telemost.yandex.ru/j/12345678901234' \
-  -v rupn-server-state:/var/lib/rupn-server \
-  makame/rupn-server:latest
-
-docker logs -f rupn-server
-```
-
-For a stable device identity and JWT across restarts, generate the client key once and pass it together with the device name:
+Paste the complete Telemost URL or only the numeric room id. Recommended startup: generate one client key, give the device a stable name, and run the container in detached mode.
 
 ```bash
 RUPN_CLIENT_KEY="$(openssl rand -hex 32)"
@@ -44,7 +31,20 @@ docker run -d \
 docker logs -f rupn-server
 ```
 
-Save `RUPN_CLIENT_KEY` in a private `.env` or secret store before closing the shell; reusing the same key and device name preserves the JWT.
+Save `RUPN_CLIENT_KEY` in a private `.env` or secret store before closing the shell. Reusing the same key and device name preserves the JWT across container/host restarts.
+
+For an ephemeral test run, omit the key and device name. This prints a new JWT after every container/service start, even with the same Docker volume:
+
+```bash
+docker run -d \
+  --name rupn-server \
+  --restart unless-stopped \
+  -e 'RUPN_TELEMOST_ROOM=https://telemost.yandex.ru/j/12345678901234' \
+  -v rupn-server-state:/var/lib/rupn-server \
+  makame/rupn-server:latest
+
+docker logs -f rupn-server
+```
 
 Startup logs contain:
 
