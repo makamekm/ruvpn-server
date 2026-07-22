@@ -8,9 +8,12 @@ Flow: `ENV → [Validate config] → (missing/invalid env) → [Generate or load
 
 ## Quick start
 
+Create a Telemost room, copy its URL, and pass it as `RUPN_TELEMOST_ROOM_ID`:
+
 ```bash
 docker run --rm -it \
   --name rupn-server \
+  -e RUPN_TELEMOST_ROOM_ID='https://telemost.yandex.ru/j/123456789' \
   -v rupn-server-state:/var/lib/rupn-server \
   makame/rupn-server:latest
 ```
@@ -24,21 +27,11 @@ RUPN_CONNECT_JWT=eyJhbG...VCJ9...
 RUPN_CONNECT_URI=olcrtc://...
 ```
 
-Use `RUPN_CONNECT_JWT` in the client app.
+Use `RUPN_CONNECT_JWT` in the client app. Replace the example URL with your Telemost room link; `RUPN_TELEMOST_ROOM_ID=123456789` also works.
 
-## Quick start with a fixed Telemost room
+## Room factory mode
 
-`telemost` is the default connection type. Set `RUPN_TELEMOST_ROOM_ID` only when you want to pin the server to an existing Telemost room instead of letting the room factory create one.
-
-```bash
-docker run --rm -it \
-  --name rupn-server \
-  -e RUPN_TELEMOST_ROOM_ID=123456789 \
-  -v rupn-server-state:/var/lib/rupn-server \
-  makame/rupn-server:latest
-```
-
-Replace `123456789` with the room id from the Telemost link.
+Omit `RUPN_TELEMOST_ROOM_ID` only if you operate a compatible Telemost room-factory service and set `RUPN_TELEMOST_ROOM_FACTORY_URL` to it. The public container itself does not include a browser login/room-factory.
 
 ## Docker Compose
 
@@ -47,6 +40,7 @@ mkdir ruvpn-server
 cd ruvpn-server
 curl -O https://raw.githubusercontent.com/makamekm/ruvpn-server/main/docker-compose.yml
 curl -o .env https://raw.githubusercontent.com/makamekm/ruvpn-server/main/.env.example
+# edit .env and set RUPN_TELEMOST_ROOM_ID to your Telemost room id or URL
 docker compose up -d
 docker logs -f rupn-server
 ```
@@ -56,10 +50,10 @@ docker logs -f rupn-server
 - `RUPN_CONNECTION_TYPE`: connection profile. Allowed: `wbstream`, `telemost`. Default: `telemost`. It selects carrier/transport automatically (`wbstream/datachannel` or `telemost/vp8channel`).
 - `RUPN_LINK`: link type. Default: `direct`.
 - `RUPN_DNS`: upstream DNS. Default: first nameserver from `/etc/resolv.conf`.
-- `RUPN_TELEMOST_ROOM_ID`: existing Telemost room id for `RUPN_CONNECTION_TYPE=telemost`. If set, the server uses it instead of creating a room through the factory.
+- `RUPN_TELEMOST_ROOM_ID`: existing Telemost room id or full Telemost room URL for `RUPN_CONNECTION_TYPE=telemost`. If set, the server uses it instead of creating a room through the factory.
 - `RUPN_TELEMOST_ROOM_FACTORY_URL`: Telemost room factory URL for `RUPN_CONNECTION_TYPE=telemost`. Default: `http://127.0.0.1:8787`.
 - `RUPN_VP8_FPS`: VP8 carrier frame rate for `telemost/vp8channel`. Default: `60`.
-- `RUPN_VP8_BATCH`: VP8 carrier batch size for `telemost/vp8channel`. Default: `16`.
+- `RUPN_VP8_BATCH`: VP8 carrier batch size for `telemost/vp8channel`. Default: `32`; values below `32` are promoted to `32`, values above `64` are clamped to `64`.
 - `RUPN_CLIENT_ID`: client id embedded into the connection link. Default: `android-01`.
 - `RUPN_JWT_SECRET`: JWT signing secret. Default: `rupn` for compatibility with the Android client.
 - `RUPN_DEBUG`: `true/false`, enables olcrtc debug logs.

@@ -2,12 +2,16 @@ import json
 from email.message import Message
 from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
 from urllib.error import HTTPError
 from unittest.mock import patch
 
 import pytest
 
 from rupn_server.connection_type_registry import ConnectionTypeRegistry
+from rupn_server.room_generator import RoomGenerator
+from rupn_server.config import ServerConfig
 from rupn_server.server_dns_resolver import ServerDnsResolver
 from rupn_server.telemost_room_factory_client import TelemostRoomFactoryClient
 from rupn_server.vp8_channel_options import Vp8ChannelOptions
@@ -16,14 +20,17 @@ from rupn_server.vp8_channel_options import Vp8ChannelOptions
 def test_vp8_defaults_match_android_reference_contract():
     defaults = Vp8ChannelOptions.defaults()
     assert defaults.fps == 60
-    assert defaults.batch == 16
-    assert defaults.transport_suffix == "vp8channel<vp8-fps=60&vp8-batch=16>"
+    assert defaults.batch == 32
+    assert defaults.transport_suffix == "vp8channel<vp8-fps=60&vp8-batch=32>"
 
 
 def test_vp8_options_are_clamped_to_supported_bounds():
     bounded = Vp8ChannelOptions.bounded(fps=120, batch=999)
     assert bounded.fps == 60
-    assert bounded.batch == 16
+    assert bounded.batch == 64
+
+    legacy_low = Vp8ChannelOptions.bounded(fps=60, batch=int("16"))
+    assert legacy_low.batch == 32
 
 
 def test_connection_profiles_are_platform_neutral():
@@ -64,3 +71,15 @@ def test_telemost_factory_auth_error_is_actionable():
 
     assert "telemost_auth_required" in str(raised.value)
     assert "noVNC room-factory" in str(raised.value)
+
+
+def test_fixed_telemost_room_accepts_id_or_url():
+    assert TelemostRoomFactoryClient.normalize_room_id("15585174191720") == "15585174191720"
+    assert TelemostRoomFactoryClient.normalize_room_id("https://telemost.yandex.ru/j/15585174191720") == "15585174191720"
+    assert TelemostRoomFactoryClient.normalize_room_id("https://telemost.yandex.ru/j/15585174191720?utm=copy") == "15585174191720"
+
+
+def test_room_generator_uses_normalized_fixed_telemost_room_url():
+    config = cast(ServerConfig, SimpleNamespace(carrier="telemost", telemost_room_id="https://telemost.yandex.ru/j/15585174191720?utm=copy"))
+
+    assert RoomGenerator(config).generate() == "15585174191720"

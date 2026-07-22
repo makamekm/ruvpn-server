@@ -35,7 +35,7 @@
           </div>
           <div class="orbit-card" aria-label="Soviet futurist satellite illustration">
             <div class="satellite" aria-hidden="true"></div>
-            <code class="terminal">docker run --rm -it --name rupn-server -v rupn-server-state:/var/lib/rupn-server makame/rupn-server:latest</code>
+            <code class="terminal">docker run --rm -it --name rupn-server -e RUPN_TELEMOST_ROOM_ID='https://telemost.yandex.ru/j/123456789' -v rupn-server-state:/var/lib/rupn-server makame/rupn-server:latest</code>
           </div>
         </div>
       </section>
@@ -44,14 +44,14 @@
         <div class="container">
           <div class="section-header">
             <h2>One container. One server.</h2>
-            <p>RUPN Server intentionally avoids multi-tenant backend logic. The runtime defaults to the Telemost connection profile, validates environment variables, creates or loads a single room/key pair, starts one server process, and prints a JWT connection token.</p>
+            <p>RUPN Server intentionally avoids multi-tenant backend logic. The runtime defaults to the Telemost connection profile, accepts a fixed Telemost room id or URL, validates environment variables, creates or loads a single room/key pair, starts one server process, and prints a JWT connection token.</p>
           </div>
           <div class="cards">
             <article class="card">
               <span class="card-number">1</span>
               <h3>Start Docker</h3>
-              <p>Run the published image with a persistent volume so the generated connection link survives restarts.</p>
-              <code class="command">docker run --rm -it --name rupn-server -v rupn-server-state:/var/lib/rupn-server makame/rupn-server:latest</code>
+              <p>Run the published image with a persistent volume. Add <code>-e RUPN_TELEMOST_ROOM_ID='https://telemost.yandex.ru/j/123456789'</code> to pin it to your own Telemost room.</p>
+              <code class="command">docker run --rm -it --name rupn-server -e RUPN_TELEMOST_ROOM_ID='https://telemost.yandex.ru/j/123456789' -v rupn-server-state:/var/lib/rupn-server makame/rupn-server:latest</code>
             </article>
             <article class="card">
               <span class="card-number">2</span>

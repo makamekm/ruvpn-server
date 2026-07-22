@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 
@@ -35,12 +36,18 @@ class TelemostRoomFactoryClient:
         except urllib.error.URLError as error:
             raise RuntimeError(f"telemost_room_factory_unavailable: {error}") from error
         room_url = str(payload.get("roomUrl", "")).strip()
-        room_id = self._extract_room_id(room_url)
+        room_id = self.normalize_room_id(room_url)
         if not room_id:
             raise RuntimeError(f"telemost_room_factory_invalid_room: {room_url}")
         return room_id
 
     @staticmethod
-    def _extract_room_id(room_url: str) -> str:
-        candidate = room_url.rstrip("/").rsplit("/", 1)[-1].strip()
+    def normalize_room_id(room_or_url: str) -> str:
+        value = room_or_url.strip()
+        if value.isdigit():
+            return value
+        parsed = urllib.parse.urlparse(value)
+        candidate = parsed.path.rstrip("/").rsplit("/", 1)[-1].strip()
         return candidate if candidate.isdigit() else ""
+
+    _extract_room_id = normalize_room_id

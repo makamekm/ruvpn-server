@@ -10,13 +10,13 @@ class Vp8ChannelOptions:
 
     @staticmethod
     def defaults() -> "Vp8ChannelOptions":
-        return Vp8ChannelOptions(fps=60, batch=16)
+        return Vp8ChannelOptions(fps=60, batch=32)
 
     @staticmethod
     def bounded(fps: int, batch: int) -> "Vp8ChannelOptions":
         return Vp8ChannelOptions(
             fps=max(1, min(60, fps)),
-            batch=max(1, min(16, batch)),
+            batch=max(32, min(64, batch)),
         )
 
     @property

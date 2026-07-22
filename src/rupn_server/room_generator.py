@@ -16,7 +16,10 @@ class RoomGenerator:
         selected_carrier = carrier or self.config.carrier
         if selected_carrier == "telemost":
             if self.config.telemost_room_id:
-                return self.config.telemost_room_id
+                room_id = TelemostRoomFactoryClient.normalize_room_id(self.config.telemost_room_id)
+                if not room_id:
+                    raise RuntimeError(f"invalid RUPN_TELEMOST_ROOM_ID: {self.config.telemost_room_id}")
+                return room_id
             return TelemostRoomFactoryClient(self.config.telemost_room_factory_url).create_room_id()
         if selected_carrier == "wbstream":
             return WbstreamRoomIdGenerator.generate()
