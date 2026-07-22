@@ -92,19 +92,25 @@ docker compose up -d
 
 ### Restart watchdogs
 
-The process is always restarted after an actual exit. Log/dataplane-based forced restarts are disabled by default because restarting a live Telemost worker can tear down active iOS/Android tunnels.
+The process is always restarted after an actual exit. Bad-log restarts stay disabled by default. VP8 dataplane recovery is enabled by default for the standalone Telemost room path because Telemost can report a remote video track while `vp8channel` ingress remains stuck at zero.
 
-Enable them only from observed logs:
+When the logs look like this, the container restarts `olcrtc` after the zero-ingress window and then backs off before another health restart:
+
+```text
+telemost remote video track: codec=video/VP8 ...
+vp8channel stats: out_frames=... in_frames=0 outbound_queue=0/4096
+```
 
 | Variable | Default |
 |---|---:|
 | `RUPN_ENABLE_BAD_LOG_RESTART_WATCHDOG` | `false` |
 | `RUPN_BAD_AFTER_SECONDS` | `0` |
-| `RUPN_ENABLE_VP8_RESTART_WATCHDOG` | `false` |
-| `RUPN_VP8_INGRESS_FROZEN_AFTER_SECONDS` | `0` |
-| `RUPN_VP8_ZERO_INGRESS_AFTER_SECONDS` | `0` |
+| `RUPN_ENABLE_VP8_RESTART_WATCHDOG` | `true` |
+| `RUPN_VP8_INGRESS_FROZEN_AFTER_SECONDS` | `60` |
+| `RUPN_VP8_ZERO_INGRESS_AFTER_SECONDS` | `30` |
+| `RUPN_VP8_RESTART_BACKOFF_SECONDS` | `600` |
 
-Both the explicit enable flag and a positive threshold are required.
+Set `RUPN_ENABLE_VP8_RESTART_WATCHDOG=false` only when you explicitly want to disable dataplane self-heal.
 
 ## Optional room factory
 

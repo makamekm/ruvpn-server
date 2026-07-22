@@ -35,6 +35,7 @@ class ServerConfig:
     vp8_ingress_frozen_after_seconds: float
     vp8_zero_ingress_after_seconds: float
     enable_vp8_restart_watchdog: bool
+    vp8_restart_backoff_seconds: float
     restart_backoff_seconds: float
 
     @staticmethod
@@ -68,9 +69,10 @@ class ServerConfig:
             socks_proxy_port=_env_int("RUPN_SOCKS_PROXY_PORT", 0),
             bad_after_seconds=_env_float("RUPN_BAD_AFTER_SECONDS", 0.0),
             enable_bad_log_restart_watchdog=_env_bool("RUPN_ENABLE_BAD_LOG_RESTART_WATCHDOG", False),
-            vp8_ingress_frozen_after_seconds=_env_float("RUPN_VP8_INGRESS_FROZEN_AFTER_SECONDS", 0.0),
-            vp8_zero_ingress_after_seconds=_env_float("RUPN_VP8_ZERO_INGRESS_AFTER_SECONDS", 0.0),
-            enable_vp8_restart_watchdog=_env_bool("RUPN_ENABLE_VP8_RESTART_WATCHDOG", False),
+            vp8_ingress_frozen_after_seconds=_env_float("RUPN_VP8_INGRESS_FROZEN_AFTER_SECONDS", 60.0),
+            vp8_zero_ingress_after_seconds=_env_float("RUPN_VP8_ZERO_INGRESS_AFTER_SECONDS", 30.0),
+            enable_vp8_restart_watchdog=_env_bool("RUPN_ENABLE_VP8_RESTART_WATCHDOG", True),
+            vp8_restart_backoff_seconds=_env_float("RUPN_VP8_RESTART_BACKOFF_SECONDS", 600.0),
             restart_backoff_seconds=_env_float("RUPN_RESTART_BACKOFF_SECONDS", 2.0),
         )
 
@@ -95,6 +97,8 @@ class ServerConfig:
             raise ValueError("RUPN_VP8_INGRESS_FROZEN_AFTER_SECONDS must be non-negative")
         if self.vp8_zero_ingress_after_seconds < 0:
             raise ValueError("RUPN_VP8_ZERO_INGRESS_AFTER_SECONDS must be non-negative")
+        if self.vp8_restart_backoff_seconds < 0:
+            raise ValueError("RUPN_VP8_RESTART_BACKOFF_SECONDS must be non-negative")
 
 
 def _env(name: str, default: str) -> str:

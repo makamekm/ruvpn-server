@@ -78,17 +78,21 @@ def test_real_legacy_state_json_is_migrated_and_keeps_key(monkeypatch, tmp_path:
     assert state.vp8_batch == 32
 
 
-def test_watchdog_restart_actions_are_opt_in(monkeypatch, tmp_path: Path):
+def test_watchdog_restart_defaults_match_self_host_recovery_contract(monkeypatch, tmp_path: Path):
     config = _config(monkeypatch, tmp_path, "55555555555555")
-    monkeypatch.setenv("RUPN_BAD_AFTER_SECONDS", "20")
-    monkeypatch.setenv("RUPN_VP8_ZERO_INGRESS_AFTER_SECONDS", "90")
-    config = ServerConfig.load()
 
     assert config.enable_bad_log_restart_watchdog is False
-    assert config.enable_vp8_restart_watchdog is False
+    assert config.enable_vp8_restart_watchdog is True
+    assert config.vp8_ingress_frozen_after_seconds == 60
+    assert config.vp8_zero_ingress_after_seconds == 30
+    assert config.vp8_restart_backoff_seconds == 600
+
+    monkeypatch.setenv("RUPN_BAD_AFTER_SECONDS", "20")
+    monkeypatch.setenv("RUPN_ENABLE_VP8_RESTART_WATCHDOG", "false")
+    disabled = ServerConfig.load()
+    assert disabled.enable_vp8_restart_watchdog is False
 
     monkeypatch.setenv("RUPN_ENABLE_BAD_LOG_RESTART_WATCHDOG", "true")
-    monkeypatch.setenv("RUPN_ENABLE_VP8_RESTART_WATCHDOG", "true")
     enabled = ServerConfig.load()
     assert enabled.enable_bad_log_restart_watchdog is True
-    assert enabled.enable_vp8_restart_watchdog is True
+    assert enabled.enable_vp8_restart_watchdog is False

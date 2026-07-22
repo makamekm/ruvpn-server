@@ -32,6 +32,12 @@ class Vp8IngressFailure(NamedTuple):
 
 
 class Vp8IngressMonitor:
+    PEER_MARKERS = (
+        "vp8channel: peer first seen",
+        "vp8channel: KCP started",
+        "telemost remote video track",
+    )
+
     def __init__(self) -> None:
         self.health: Vp8IngressHealth | None = None
         self.failure: Vp8IngressFailure | None = None
@@ -39,9 +45,22 @@ class Vp8IngressMonitor:
         self.has_fresh_signal = False
 
     def feed(self, line: str, now: float | None = None) -> None:
-        if "vp8channel: peer first seen" in line or "vp8channel: KCP started" in line:
+        if any(marker in line for marker in self.PEER_MARKERS):
             self.has_peer_marker = True
             self.has_fresh_signal = True
+            current = self.health
+            if current is not None and not current.has_peer_marker and not current.has_seen_ingress:
+                marker_at = time.time() if now is None else now
+                self.health = Vp8IngressHealth(
+                    current.in_frames,
+                    current.out_frames,
+                    current.outbound_queue,
+                    current.outbound_queue_cap,
+                    marker_at,
+                    current.has_seen_ingress,
+                    True,
+                    False,
+                )
         sample = last_vp8_stats(line)
         if sample is None:
             return
@@ -193,6 +212,7 @@ class ServerSupervisor:
         self.state = state
         self.stopping = False
         self.process: subprocess.Popen[str] | None = None
+        self.vp8_restart_backoff_until = 0.0
 
     def run(self) -> int:
         signal.signal(signal.SIGTERM, self._terminate)
@@ -254,6 +274,9 @@ class ServerSupervisor:
                 monitor=vp8_monitor,
             )
             if vp8_failure is not None:
+                if now < self.vp8_restart_backoff_until:
+                    time.sleep(1.0)
+                    continue
                 print(
                     "RUPN server vp8 "
                     f"{vp8_failure.reason}; "
@@ -262,6 +285,7 @@ class ServerSupervisor:
                     f"frozen_for={vp8_failure.frozen_for:.0f}s; restarting olcrtc",
                     flush=True,
                 )
+                self.vp8_restart_backoff_until = now + self.config.vp8_restart_backoff_seconds
                 self._stop_process()
                 reader.join(timeout=1.0)
                 return 0

@@ -108,18 +108,62 @@ def test_vp8_zero_ingress_requires_peer_marker_before_restart():
         monitor=monitor,
     ) is None
 
-    monitor.feed("2026/05/27 22:38:01 vp8channel: KCP started localEpoch=0x1234")
-    failure = should_restart_for_vp8_ingress(
+    monitor.feed("2026/05/27 22:38:01 vp8channel: KCP started localEpoch=0x1234", now=120)
+    assert should_restart_for_vp8_ingress(
         frozen_after_seconds=0,
         zero_ingress_after_seconds=90,
         now=120,
+        monitor=monitor,
+    ) is None
+
+    monitor.feed_sample(_sample(out_frames=900, in_frames=0), now=211)
+    failure = should_restart_for_vp8_ingress(
+        frozen_after_seconds=0,
+        zero_ingress_after_seconds=90,
+        now=211,
         monitor=monitor,
     )
 
     assert failure is not None
     assert failure.reason == "zero ingress"
     assert failure.in_frames == 0
-    assert failure.out_frames == 500
+    assert failure.out_frames == 900
+
+
+def test_vp8_zero_ingress_treats_telemost_remote_video_track_as_peer_ready_with_grace_window():
+    monitor = Vp8IngressMonitor()
+    monitor.feed_sample(_sample(out_frames=1, in_frames=0), now=0)
+    monitor.feed_sample(_sample(out_frames=695, in_frames=0), now=72)
+
+    assert should_restart_for_vp8_ingress(
+        frozen_after_seconds=0,
+        zero_ingress_after_seconds=30,
+        now=72,
+        monitor=monitor,
+    ) is None
+
+    monitor.feed("2026/07/22 21:57:18 telemost remote video track: codec=video/VP8 stream=x track=y", now=78)
+    monitor.feed_sample(_sample(out_frames=795, in_frames=0), now=81)
+
+    assert should_restart_for_vp8_ingress(
+        frozen_after_seconds=0,
+        zero_ingress_after_seconds=30,
+        now=81,
+        monitor=monitor,
+    ) is None
+
+    monitor.feed_sample(_sample(out_frames=1095, in_frames=0), now=111)
+    failure = should_restart_for_vp8_ingress(
+        frozen_after_seconds=0,
+        zero_ingress_after_seconds=30,
+        now=111,
+        monitor=monitor,
+    )
+
+    assert failure is not None
+    assert failure.reason == "zero ingress"
+    assert failure.in_frames == 0
+    assert failure.out_frames == 1095
 
 
 def test_vp8_ingress_progress_resets_freeze_timer():
