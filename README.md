@@ -27,6 +27,25 @@ docker run -d \
 docker logs -f rupn-server
 ```
 
+For a stable device identity and JWT across restarts, generate the client key once and pass it together with the device name:
+
+```bash
+RUPN_CLIENT_KEY="$(openssl rand -hex 32)"
+
+docker run -d \
+  --name rupn-server \
+  --restart unless-stopped \
+  -e 'RUPN_TELEMOST_ROOM=https://telemost.yandex.ru/j/12345678901234' \
+  -e 'RUPN_DEVICE_NAME=max-phone' \
+  -e "RUPN_CLIENT_KEY=${RUPN_CLIENT_KEY}" \
+  -v rupn-server-state:/var/lib/rupn-server \
+  makame/rupn-server:latest
+
+docker logs -f rupn-server
+```
+
+Save `RUPN_CLIENT_KEY` in a private `.env` or secret store before closing the shell; reusing the same key and device name preserves the JWT.
+
 Startup logs contain:
 
 ```text
