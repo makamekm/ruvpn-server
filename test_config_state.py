@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from rupn_server.config import ServerConfig
 from rupn_server.room_generator import RoomGenerator
 from rupn_server.server_state import ServerState
@@ -19,7 +21,13 @@ def _config(monkeypatch, tmp_path: Path, room: str) -> ServerConfig:
     return ServerConfig.load()
 
 
-def test_fixed_telemost_room_replaces_persisted_room_without_rotate(monkeypatch, tmp_path: Path):
+def _fixed_generated_credentials(monkeypatch, *, key_hex: str = "aa" * 32, device_name: str = "device-random") -> None:
+    monkeypatch.setattr(ServerStateStore, "new_key_hex", staticmethod(lambda: key_hex))
+    monkeypatch.setattr(ServerStateStore, "new_device_name", staticmethod(lambda: device_name))
+
+
+def test_fixed_telemost_room_replaces_persisted_room_and_rotates_unpinned_credentials(monkeypatch, tmp_path: Path):
+    _fixed_generated_credentials(monkeypatch)
     config = _config(monkeypatch, tmp_path, "https://telemost.yandex.ru/j/22222222222222")
     store = ServerStateStore(config.state_file)
     store.save(
@@ -38,9 +46,44 @@ def test_fixed_telemost_room_replaces_persisted_room_without_rotate(monkeypatch,
     state = ServerStateFactory(config, store, RoomGenerator(config)).get_or_create()
 
     assert state.room_id == "22222222222222"
-    assert state.key_hex == "11" * 32
-    assert state.client_id == config.client_id
+    assert state.key_hex == "aa" * 32
+    assert state.client_id == "device-random"
     assert store.load() == state
+
+
+def test_env_key_and_device_pin_jwt_credentials_across_restarts(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv("RUPN_KEY_HEX", "33" * 32)
+    monkeypatch.setenv("RUPN_DEVICE_NAME", "max-phone")
+    config = _config(monkeypatch, tmp_path, "https://telemost.yandex.ru/j/22222222222222")
+    store = ServerStateStore(config.state_file)
+
+    first = ServerStateFactory(config, store, RoomGenerator(config)).get_or_create()
+    second = ServerStateFactory(config, store, RoomGenerator(config)).get_or_create()
+
+    assert first == second
+    assert first.key_hex == "33" * 32
+    assert first.client_id == "max-phone"
+    assert "%max-phone$vpnrtc" in first.connection_uri
+
+
+def test_unpinned_key_and_device_rotate_on_every_service_start_even_with_volume(monkeypatch, tmp_path: Path):
+    generated = iter([("aa" * 32, "device-one"), ("bb" * 32, "device-two")])
+    current = {"pair": next(generated)}
+    monkeypatch.setattr(ServerStateStore, "new_key_hex", staticmethod(lambda: current["pair"][0]))
+    monkeypatch.setattr(ServerStateStore, "new_device_name", staticmethod(lambda: current["pair"][1]))
+    config = _config(monkeypatch, tmp_path, "https://telemost.yandex.ru/j/22222222222222")
+    store = ServerStateStore(config.state_file)
+
+    first = ServerStateFactory(config, store, RoomGenerator(config)).get_or_create()
+    current["pair"] = next(generated)
+    second = ServerStateFactory(config, store, RoomGenerator(config)).get_or_create()
+
+    assert first.room_id == second.room_id == "22222222222222"
+    assert first.key_hex == "aa" * 32
+    assert first.client_id == "device-one"
+    assert second.key_hex == "bb" * 32
+    assert second.client_id == "device-two"
+    assert first.connection_uri != second.connection_uri
 
 
 def test_legacy_room_id_alias_works_when_new_variable_is_empty(monkeypatch, tmp_path: Path):
@@ -53,7 +96,30 @@ def test_legacy_room_id_alias_works_when_new_variable_is_empty(monkeypatch, tmp_
     assert ServerConfig.load().telemost_room_id == "33333333333333"
 
 
-def test_real_legacy_state_json_is_migrated_and_keeps_key(monkeypatch, tmp_path: Path):
+def test_device_name_env_precedes_legacy_client_id_alias(monkeypatch, tmp_path: Path):
+    binary = tmp_path / "olcrtc"
+    binary.write_text("", encoding="utf-8")
+    monkeypatch.setenv("OLCRTC_BIN", str(binary))
+    monkeypatch.setenv("RUPN_TELEMOST_ROOM", "33333333333333")
+    monkeypatch.setenv("RUPN_DEVICE_NAME", "phone-main")
+    monkeypatch.setenv("RUPN_CLIENT_ID", "legacy-client")
+
+    assert ServerConfig.load().client_id == "phone-main"
+
+
+def test_legacy_client_id_alias_still_pins_device_name(monkeypatch, tmp_path: Path):
+    binary = tmp_path / "olcrtc"
+    binary.write_text("", encoding="utf-8")
+    monkeypatch.setenv("OLCRTC_BIN", str(binary))
+    monkeypatch.setenv("RUPN_TELEMOST_ROOM", "33333333333333")
+    monkeypatch.setenv("RUPN_DEVICE_NAME", "")
+    monkeypatch.setenv("RUPN_CLIENT_ID", "legacy-client")
+
+    assert ServerConfig.load().client_id == "legacy-client"
+
+
+def test_real_legacy_state_json_is_migrated_but_unpinned_credentials_rotate(monkeypatch, tmp_path: Path):
+    _fixed_generated_credentials(monkeypatch, key_hex="cc" * 32, device_name="device-fresh")
     config = _config(monkeypatch, tmp_path, "22222222222222")
     config.state_file.parent.mkdir(parents=True, exist_ok=True)
     config.state_file.write_text(
@@ -72,10 +138,34 @@ def test_real_legacy_state_json_is_migrated_and_keeps_key(monkeypatch, tmp_path:
     state = ServerStateFactory(config, ServerStateStore(config.state_file), RoomGenerator(config)).get_or_create()
 
     assert state.room_id == "22222222222222"
-    assert state.key_hex == "22" * 32
+    assert state.key_hex == "cc" * 32
+    assert state.client_id == "device-fresh"
     assert state.connection_type == "telemost"
     assert state.vp8_fps == 60
     assert state.vp8_batch == 32
+
+
+def test_key_hex_validation(monkeypatch, tmp_path: Path):
+    config = _config(monkeypatch, tmp_path, "22222222222222")
+    assert config.key_hex == ""
+
+    monkeypatch.setenv("RUPN_KEY_HEX", "AA" * 32)
+    uppercase = ServerConfig.load()
+    uppercase.validate()
+    assert uppercase.key_hex == "aa" * 32
+
+    monkeypatch.setenv("RUPN_KEY_HEX", "not-hex")
+    invalid = ServerConfig.load()
+    with pytest.raises(ValueError, match="RUPN_KEY_HEX"):
+        invalid.validate()
+
+
+def test_device_name_validation(monkeypatch, tmp_path: Path):
+    _config(monkeypatch, tmp_path, "22222222222222")
+    monkeypatch.setenv("RUPN_DEVICE_NAME", "bad device name")
+    invalid = ServerConfig.load()
+    with pytest.raises(ValueError, match="RUPN_DEVICE_NAME"):
+        invalid.validate()
 
 
 def test_watchdog_restart_defaults_match_self_host_recovery_contract(monkeypatch, tmp_path: Path):

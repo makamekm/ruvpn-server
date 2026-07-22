@@ -55,3 +55,7 @@ class ServerStateStore:
     @staticmethod
     def new_key_hex() -> str:
         return secrets.token_hex(32)
+
+    @staticmethod
+    def new_device_name() -> str:
+        return f"device-{secrets.token_hex(4)}"

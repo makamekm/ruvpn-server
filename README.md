@@ -33,6 +33,7 @@ Startup logs contain:
 RUPN server started
 RUPN_CONNECTION_TYPE=telemost
 RUPN_TELEMOST_ROOM_ID=12345678901234
+RUPN_DEVICE_NAME=device-...
 RUPN_CONNECT_JWT=eyJhbG...
 ```
 
@@ -60,14 +61,15 @@ docker compose pull
 docker compose up -d
 ```
 
-## Persistent state and room changes
+## Credentials, JWT, and room changes
 
-`/var/lib/rupn-server/server.json` stores the generated key and connection metadata. Keep the volume private and back it up.
+`/var/lib/rupn-server/server.json` stores the last generated key/device metadata for the current container process. Keep the volume private.
 
-- Container restarts preserve the key and JWT.
-- Changing `RUPN_TELEMOST_ROOM` updates the persisted room while preserving the key.
-- `RUPN_ROTATE_ON_START=true` generates a new key and JWT.
-- `docker compose down -v` deletes the key permanently.
+- If `RUPN_KEY_HEX` and `RUPN_DEVICE_NAME` are empty, every Docker/service restart generates a fresh key, fresh device name, and therefore a new `RUPN_CONNECT_JWT`.
+- Internal `olcrtc` restarts by the supervisor reuse the same in-memory state and do not change the JWT until the container process itself restarts.
+- Set `RUPN_KEY_HEX` and `RUPN_DEVICE_NAME` to keep the same JWT across Docker/service restarts.
+- Changing `RUPN_TELEMOST_ROOM` updates the room used in the next printed JWT.
+- `RUPN_ROTATE_ON_START=true` still forces a new room when no fixed room is configured; env-pinned key/device values always win.
 
 ## Configuration
 
@@ -80,11 +82,13 @@ docker compose up -d
 | `RUPN_DNS` | container resolver | Upstream DNS, with optional `:port`. |
 | `RUPN_VP8_FPS` | `60` | VP8 frame rate; bounded to `1..60`. |
 | `RUPN_VP8_BATCH` | `32` | VP8 batch size; bounded to `32..64` for the current client/server contract. |
-| `RUPN_CLIENT_ID` | `android-01` | Server-side client identity embedded into the URI. |
+| `RUPN_KEY_HEX` | empty | Optional fixed 32-byte connection key as 64 hex chars. Empty means generate a random key on every container process start. |
+| `RUPN_DEVICE_NAME` | empty | Optional fixed client/device id embedded into the URI. Empty means generate a random `device-...` id on every container process start. |
+| `RUPN_CLIENT_ID` | empty | Legacy alias for `RUPN_DEVICE_NAME`; used only when `RUPN_DEVICE_NAME` is empty. |
 | `RUPN_JWT_SECRET` | `rupn` | JWT wrapper secret required by compatible clients. |
 | `RUPN_DEBUG` | `false` | Enable verbose olcrtc logs. |
 | `RUPN_PRINT_RAW_URI` | `false` | Print the secret-bearing raw `olcrtc://` URI. |
-| `RUPN_ROTATE_ON_START` | `false` | Rotate key/JWT at startup. |
+| `RUPN_ROTATE_ON_START` | `false` | Ignore persisted room metadata at startup when no fixed room is configured. Env-pinned key/device values still win. |
 | `RUPN_RESTART_BACKOFF_SECONDS` | `2` | Delay after an unexpected olcrtc process exit. |
 | `RUPN_SOCKS_PROXY` | empty | Optional upstream SOCKS5 host. |
 | `RUPN_SOCKS_PROXY_PORT` | `0` | SOCKS5 port; must be set together with host. |

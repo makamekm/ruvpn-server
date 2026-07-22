@@ -21,6 +21,7 @@ class ServerConfig:
     link: str
     dns: str
     client_id: str
+    key_hex: str
     jwt_secret: str
     telemost_room_id: str
     telemost_room_factory_url: str
@@ -54,7 +55,8 @@ class ServerConfig:
             transport=connection_type.transport,
             link=_env("RUPN_LINK", "direct"),
             dns=_env("RUPN_DNS", ""),
-            client_id=_env("RUPN_CLIENT_ID", "android-01"),
+            client_id=_env("RUPN_DEVICE_NAME", "") or _env("RUPN_CLIENT_ID", ""),
+            key_hex=_normalize_key_hex(_env("RUPN_KEY_HEX", "")),
             jwt_secret=_env("RUPN_JWT_SECRET", "rupn"),
             telemost_room_id=parse_telemost_room(telemost_room) if telemost_room else "",
             telemost_room_factory_url=_env("RUPN_TELEMOST_ROOM_FACTORY_URL", ""),
@@ -85,8 +87,10 @@ class ServerConfig:
             raise ValueError("RUPN_TRANSPORT is required")
         if self.connection_type.name == "telemost" and not self.telemost_room_id and not self.telemost_room_factory_url:
             raise ValueError("RUPN_TELEMOST_ROOM (room id or invite URL) is required for telemost")
-        if not self.client_id:
-            raise ValueError("RUPN_CLIENT_ID is required")
+        if self.client_id and not _valid_client_id(self.client_id):
+            raise ValueError("RUPN_DEVICE_NAME/RUPN_CLIENT_ID must contain only URL-safe device id characters")
+        if self.key_hex and not _valid_key_hex(self.key_hex):
+            raise ValueError("RUPN_KEY_HEX must be exactly 64 hexadecimal characters")
         if not self.jwt_secret:
             raise ValueError("RUPN_JWT_SECRET is required")
         if bool(self.socks_proxy) != bool(self.socks_proxy_port):
@@ -103,6 +107,19 @@ class ServerConfig:
 
 def _env(name: str, default: str) -> str:
     return os.environ.get(name, default).strip()
+
+
+def _normalize_key_hex(value: str) -> str:
+    return value.lower()
+
+
+def _valid_key_hex(value: str) -> bool:
+    return len(value) == 64 and all(char in "0123456789abcdef" for char in value)
+
+
+def _valid_client_id(value: str) -> bool:
+    allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
+    return 1 <= len(value) <= 64 and all(char in allowed for char in value)
 
 
 def _env_bool(name: str, default: bool) -> bool:

@@ -44,7 +44,7 @@
         <div class="container">
           <div class="section-header">
             <h2>One container. One server.</h2>
-            <p>RUPN Server intentionally avoids multi-tenant backend logic. The runtime defaults to the Telemost connection profile, accepts a fixed Telemost room id or URL, validates environment variables, creates or loads a single room/key pair, starts one server process, and prints a JWT connection token.</p>
+            <p>RUPN Server intentionally avoids multi-tenant backend logic. The runtime defaults to the Telemost connection profile, accepts a fixed Telemost room id or URL, validates environment variables, starts one server process, and prints a JWT connection token. Key/device credentials are random on each container process start unless pinned through env.</p>
           </div>
           <div class="cards">
             <article class="card">
@@ -62,7 +62,7 @@
             <article class="card">
               <span class="card-number">3</span>
               <h3>Keep it private</h3>
-              <p>The Docker volume stores the server key. Treat it as private infrastructure state.</p>
+              <p>Leave credentials empty for a fresh JWT on every service restart, or pin <code>RUPN_KEY_HEX</code> and <code>RUPN_DEVICE_NAME</code> for a stable JWT.</p>
               <code class="command">/var/lib/rupn-server/server.json</code>
             </article>
           </div>

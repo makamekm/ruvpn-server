@@ -21,6 +21,7 @@ def main() -> int:
         print("RUPN server started", flush=True)
         print(f"RUPN_CONNECTION_TYPE={state.connection_type}", flush=True)
         print(f"RUPN_TELEMOST_ROOM_ID={state.room_id}", flush=True)
+        print(f"RUPN_DEVICE_NAME={state.client_id}", flush=True)
         print(f"RUPN_CONNECT_JWT={token}", flush=True)
         if config.print_raw_uri:
             print(f"RUPN_CONNECT_URI={state.connection_uri}", flush=True)
