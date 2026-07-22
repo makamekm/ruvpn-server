@@ -1,10 +1,16 @@
 from rupn_server.server_supervisor import (
     OlcRtcLogStatus,
     Vp8IngressMonitor,
+    effective_watchdog_threshold,
     should_restart_for_bad_status,
     should_restart_for_vp8_ingress,
 )
 from rupn_server.vp8_log_stats import parse_vp8_stats
+
+
+def test_watchdog_threshold_requires_explicit_enable_flag():
+    assert effective_watchdog_threshold(enabled=False, threshold_seconds=90) == 0
+    assert effective_watchdog_threshold(enabled=True, threshold_seconds=90) == 90
 
 
 def test_bad_after_zero_disables_bad_marker_restart():

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import urllib.error
-import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+
+from rupn_server.telemost_room import parse_telemost_room
 
 
 @dataclass(frozen=True)
@@ -43,11 +44,9 @@ class TelemostRoomFactoryClient:
 
     @staticmethod
     def normalize_room_id(room_or_url: str) -> str:
-        value = room_or_url.strip()
-        if value.isdigit():
-            return value
-        parsed = urllib.parse.urlparse(value)
-        candidate = parsed.path.rstrip("/").rsplit("/", 1)[-1].strip()
-        return candidate if candidate.isdigit() else ""
+        try:
+            return parse_telemost_room(room_or_url)
+        except ValueError:
+            return ""
 
     _extract_room_id = normalize_room_id

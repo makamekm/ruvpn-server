@@ -183,6 +183,10 @@ def should_restart_for_vp8_ingress(
     )
 
 
+def effective_watchdog_threshold(*, enabled: bool, threshold_seconds: float) -> float:
+    return threshold_seconds if enabled else 0.0
+
+
 class ServerSupervisor:
     def __init__(self, config: ServerConfig, state: ServerState) -> None:
         self.config = config
@@ -225,7 +229,10 @@ class ServerSupervisor:
                 return return_code
             now = time.time()
             if should_restart_for_bad_status(
-                bad_after_seconds=self.config.bad_after_seconds,
+                bad_after_seconds=effective_watchdog_threshold(
+                    enabled=self.config.enable_bad_log_restart_watchdog,
+                    threshold_seconds=self.config.bad_after_seconds,
+                ),
                 started_at=started_at,
                 now=now,
                 log_status=log_status,
@@ -235,8 +242,14 @@ class ServerSupervisor:
                 reader.join(timeout=1.0)
                 return 0
             vp8_failure = should_restart_for_vp8_ingress(
-                frozen_after_seconds=self.config.vp8_ingress_frozen_after_seconds,
-                zero_ingress_after_seconds=self.config.vp8_zero_ingress_after_seconds,
+                frozen_after_seconds=effective_watchdog_threshold(
+                    enabled=self.config.enable_vp8_restart_watchdog,
+                    threshold_seconds=self.config.vp8_ingress_frozen_after_seconds,
+                ),
+                zero_ingress_after_seconds=effective_watchdog_threshold(
+                    enabled=self.config.enable_vp8_restart_watchdog,
+                    threshold_seconds=self.config.vp8_zero_ingress_after_seconds,
+                ),
                 now=now,
                 monitor=vp8_monitor,
             )

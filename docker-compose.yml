@@ -1,6 +1,7 @@
 services:
   rupn-server:
     image: makame/rupn-server:latest
+    pull_policy: always
     container_name: rupn-server
     restart: unless-stopped
     env_file:

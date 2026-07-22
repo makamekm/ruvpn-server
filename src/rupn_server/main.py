@@ -20,8 +20,10 @@ def main() -> int:
         token = ConnectionTokenEncoder(config.jwt_secret).encode(state.connection_uri)
         print("RUPN server started", flush=True)
         print(f"RUPN_CONNECTION_TYPE={state.connection_type}", flush=True)
+        print(f"RUPN_TELEMOST_ROOM_ID={state.room_id}", flush=True)
         print(f"RUPN_CONNECT_JWT={token}", flush=True)
-        print(f"RUPN_CONNECT_URI={state.connection_uri}", flush=True)
+        if config.print_raw_uri:
+            print(f"RUPN_CONNECT_URI={state.connection_uri}", flush=True)
         return ServerSupervisor(config, state).run()
     except Exception as error:  # noqa: BLE001 - entrypoint must print actionable startup errors
         print(f"rupn-server startup failed: {error}", file=sys.stderr, flush=True)

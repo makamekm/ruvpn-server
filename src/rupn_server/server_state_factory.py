@@ -35,6 +35,10 @@ class ServerStateFactory:
     def _with_runtime_options(self, state: ServerState) -> ServerState:
         updated = replace(
             state,
+            room_id=self.config.telemost_room_id or state.room_id,
+            client_id=self.config.client_id,
+            carrier=self.config.connection_type.carrier,
+            transport=self.config.connection_type.transport,
             vp8_fps=self.config.vp8_options.fps,
             vp8_batch=self.config.vp8_options.batch,
         )

@@ -14,6 +14,7 @@ from rupn_server.room_generator import RoomGenerator
 from rupn_server.config import ServerConfig
 from rupn_server.server_dns_resolver import ServerDnsResolver
 from rupn_server.telemost_room_factory_client import TelemostRoomFactoryClient
+from rupn_server.telemost_room import parse_telemost_room
 from rupn_server.vp8_channel_options import Vp8ChannelOptions
 
 
@@ -43,6 +44,36 @@ def test_connection_profiles_are_platform_neutral():
 
 def test_default_connection_type_matches_closed_backend_contract():
     assert ConnectionTypeRegistry.default().name == "telemost"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("12345678901234", "12345678901234"),
+        ("https://telemost.yandex.ru/j/12345678901234", "12345678901234"),
+        ("https://telemost.yandex.ru/j/12345678901234/?utm_source=share", "12345678901234"),
+    ],
+)
+def test_telemost_room_accepts_id_or_invite_url(value: str, expected: str):
+    assert parse_telemost_room(value) == expected
+
+
+def test_telemost_room_rejects_invalid_value():
+    with pytest.raises(ValueError, match="invalid Telemost"):
+        parse_telemost_room("https://telemost.yandex.ru/")
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "https://example.com/j/12345678901234",
+        "https://telemost.yandex.ru/not-j/12345678901234",
+        "http://telemost.yandex.ru/j/12345678901234",
+    ],
+)
+def test_telemost_room_rejects_non_invite_urls(value: str):
+    with pytest.raises(ValueError):
+        parse_telemost_room(value)
 
 
 def test_dns_resolver_prefers_ipv4_nameserver(tmp_path: Path):
