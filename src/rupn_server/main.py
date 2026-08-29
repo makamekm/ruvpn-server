@@ -8,6 +8,7 @@ from rupn_server.room_generator import RoomGenerator
 from rupn_server.server_state_factory import ServerStateFactory
 from rupn_server.server_state_store import ServerStateStore
 from rupn_server.server_supervisor import ServerSupervisor
+from rupn_server.server_dns_resolver import ServerDnsResolver
 
 
 def main() -> int:
@@ -17,14 +18,15 @@ def main() -> int:
         store = ServerStateStore(config.state_file)
         generator = RoomGenerator(config)
         state = ServerStateFactory(config, store, generator).get_or_create()
-        token = ConnectionTokenEncoder(config.jwt_secret).encode(state.connection_uri)
+        connection_uri = state.connection_uri_with_dns(ServerDnsResolver.resolve(config.dns))
+        token = ConnectionTokenEncoder(config.jwt_secret).encode(connection_uri)
         print("RUPN server started", flush=True)
         print(f"RUPN_CONNECTION_TYPE={state.connection_type}", flush=True)
         print(f"RUPN_TELEMOST_ROOM_ID={state.room_id}", flush=True)
         print(f"RUPN_DEVICE_NAME={state.client_id}", flush=True)
         print(f"RUPN_CONNECT_JWT={token}", flush=True)
         if config.print_raw_uri:
-            print(f"RUPN_CONNECT_URI={state.connection_uri}", flush=True)
+            print(f"RUPN_CONNECT_URI={connection_uri}", flush=True)
         return ServerSupervisor(config, state).run()
     except Exception as error:  # noqa: BLE001 - entrypoint must print actionable startup errors
         print(f"rupn-server startup failed: {error}", file=sys.stderr, flush=True)

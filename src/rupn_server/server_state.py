@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.parse import quote
 
 from rupn_server.vp8_channel_options import Vp8ChannelOptions
 
@@ -29,3 +30,12 @@ class ServerState:
     @property
     def connection_uri(self) -> str:
         return f"olcrtc://{self.carrier}?{self.transport_uri_component}@{self.room_id}#{self.key_hex}%{self.client_id}$vpnrtc"
+
+    def connection_uri_with_dns(self, dns_server: str) -> str:
+        transport = self.transport_uri_component
+        encoded_dns = quote(dns_server, safe="")
+        if "<" in transport:
+            transport = transport.replace(">", f"&dns={encoded_dns}>", 1)
+        else:
+            transport = f"{transport}<dns={encoded_dns}>"
+        return f"olcrtc://{self.carrier}?{transport}@{self.room_id}#{self.key_hex}%{self.client_id}$vpnrtc"

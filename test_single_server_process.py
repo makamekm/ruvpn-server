@@ -36,6 +36,7 @@ def test_server_command_uses_srv_role_but_connection_uri_keeps_client_identity()
     assert command[command.index("-client-id") + 1] == "srv-android-01"
     assert "%android-01$vpnrtc" in state.connection_uri
     assert "%srv-android-01$vpnrtc" not in state.connection_uri
+    assert "dns=192.168.50.53%3A53" in state.connection_uri_with_dns("192.168.50.53:53")
 
 
 def test_server_role_prefix_is_idempotent():

@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 ARG TARGETARCH
 ARG VCS_REF=unknown
-ARG OLCRTC_REF=0b5019a9d19d9ecc8adbb4e20145b01eb12d5ed0
+ARG OLCRTC_REF=aed6bdb772640cd5bbec2dbd069e785923f444dc
 
 LABEL org.opencontainers.image.title="RUPN Server"
 LABEL org.opencontainers.image.description="Single-room self-hosted RUPN server"
