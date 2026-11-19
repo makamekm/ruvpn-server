@@ -10,13 +10,13 @@ LABEL org.opencontainers.image.source="https://github.com/makamekm/ruvpn-server"
 LABEL org.opencontainers.image.revision="${VCS_REF}"
 LABEL io.rupn.olcrtc.revision="${OLCRTC_REF}"
 
+# No RUN steps: the image is assembled from prebuilt files only, so buildx can
+# produce linux/arm64 on an amd64 host without QEMU emulation.
+WORKDIR /var/lib/rupn-server
 WORKDIR /app
 
-COPY bin/olcrtc-linux-${TARGETARCH} /usr/local/bin/olcrtc
+COPY --chmod=755 bin/olcrtc-linux-${TARGETARCH} /usr/local/bin/olcrtc
 COPY src/rupn_server /app/rupn_server
-
-RUN chmod +x /usr/local/bin/olcrtc \
-    && mkdir -p /var/lib/rupn-server
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
