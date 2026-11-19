@@ -208,3 +208,37 @@ def test_watchdog_restart_defaults_match_self_host_recovery_contract(monkeypatch
 
     monkeypatch.setenv("RUPN_ENABLE_VP8_RESTART_WATCHDOG", "false")
     assert ServerConfig.load().enable_vp8_restart_watchdog is False
+
+
+def test_lan_access_is_off_unless_enabled():
+    from rupn_server.lan_access import LanAccess
+
+    assert LanAccess.resolve(False, "192.168.0.0/24", "192.168.0.191:53") == ""
+
+
+def test_lan_access_derives_home_subnet_from_private_dns():
+    from rupn_server.lan_access import LanAccess
+
+    assert LanAccess.resolve(True, "", "192.168.0.191:53") == "192.168.0.0/24"
+    # A public or loopback resolver (cloud server) yields nothing to expose.
+    assert LanAccess.resolve(True, "", "1.1.1.1:53") == ""
+    assert LanAccess.resolve(True, "", "127.0.0.11:53") == ""
+
+
+def test_lan_access_keeps_only_private_configured_subnets():
+    from rupn_server.lan_access import LanAccess
+
+    spec = LanAccess.resolve(True, "10.1.0.0/16, 8.8.8.0/24, junk, 192.168.5.7/24", "1.1.1.1:53")
+    assert spec == "10.1.0.0/16,192.168.5.0/24"
+
+
+def test_connection_uri_carries_lan_subnets():
+    from rupn_server.server_state import ServerState
+
+    state = ServerState(
+        room_id="123", key_hex="ab" * 32, client_id="dev-123", carrier="telemost",
+        transport="vp8channel", connection_type="telemost", vp8_fps=60, vp8_batch=32,
+    )
+    with_lan = state.connection_uri_with_dns("192.168.0.191:53", "192.168.0.0/24")
+    assert "dns=192.168.0.191%3A53&lan=192.168.0.0%2F24>" in with_lan
+    assert "lan=" not in state.connection_uri_with_dns("192.168.0.191:53")

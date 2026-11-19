@@ -32,6 +32,8 @@ class ServerConfig:
     print_raw_uri: bool
     rotate_on_start: bool
     socks_proxy: str
+    lan_access: bool
+    lan_subnets: str
     socks_proxy_port: int
     bad_after_seconds: float
     enable_bad_log_restart_watchdog: bool
@@ -78,6 +80,8 @@ class ServerConfig:
             print_raw_uri=_env_bool("RUPN_PRINT_RAW_URI", False),
             rotate_on_start=rotate_on_start,
             socks_proxy=_env("RUPN_SOCKS_PROXY", ""),
+            lan_access=_env_bool("RUPN_LAN_ACCESS", False),
+            lan_subnets=_env("RUPN_LAN_SUBNETS", ""),
             socks_proxy_port=_env_int("RUPN_SOCKS_PROXY_PORT", 0),
             bad_after_seconds=_env_float("RUPN_BAD_AFTER_SECONDS", 0.0),
             enable_bad_log_restart_watchdog=_env_bool("RUPN_ENABLE_BAD_LOG_RESTART_WATCHDOG", False),

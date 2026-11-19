@@ -31,11 +31,13 @@ class ServerState:
     def connection_uri(self) -> str:
         return f"olcrtc://{self.carrier}?{self.transport_uri_component}@{self.room_id}#{self.key_hex}%{self.client_id}$vpnrtc"
 
-    def connection_uri_with_dns(self, dns_server: str) -> str:
+    def connection_uri_with_dns(self, dns_server: str, lan_subnets: str = "") -> str:
         transport = self.transport_uri_component
-        encoded_dns = quote(dns_server, safe="")
+        params = f"dns={quote(dns_server, safe='')}"
+        if lan_subnets:
+            params += f"&lan={quote(lan_subnets, safe='')}"
         if "<" in transport:
-            transport = transport.replace(">", f"&dns={encoded_dns}>", 1)
+            transport = transport.replace(">", f"&{params}>", 1)
         else:
-            transport = f"{transport}<dns={encoded_dns}>"
+            transport = f"{transport}<{params}>"
         return f"olcrtc://{self.carrier}?{transport}@{self.room_id}#{self.key_hex}%{self.client_id}$vpnrtc"
