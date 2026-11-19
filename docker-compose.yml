@@ -4,6 +4,10 @@ services:
     pull_policy: always
     container_name: rupn-server
     restart: unless-stopped
+    # With RUPN_LAN_ACCESS=true use host networking, so the server reaches the
+    # local network (including services on this host) from its LAN address
+    # instead of the Docker bridge, which hosts and firewalls often reject:
+    # network_mode: host
     env_file:
       - .env
     volumes:
