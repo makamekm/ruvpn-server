@@ -242,3 +242,21 @@ def test_connection_uri_carries_lan_subnets():
     with_lan = state.connection_uri_with_dns("192.168.0.191:53", "192.168.0.0/24")
     assert "dns=192.168.0.191%3A53&lan=192.168.0.0%2F24>" in with_lan
     assert "lan=" not in state.connection_uri_with_dns("192.168.0.191:53")
+
+
+def test_direct_path_env_is_exported_only_when_enabled(monkeypatch):
+    import os
+    from types import SimpleNamespace
+
+    from rupn_server.main import _export_direct_path
+
+    monkeypatch.delenv("OLCRTC_DIRECT_PORT", raising=False)
+    _export_direct_path(SimpleNamespace(direct_port=0, direct_natpmp=True, direct_public_ip=""))
+    assert "OLCRTC_DIRECT_PORT" not in os.environ
+    _export_direct_path(SimpleNamespace(direct_port=40400, direct_natpmp=False, direct_public_ip="203.0.113.5"))
+    assert os.environ["OLCRTC_DIRECT_PORT"] == "40400"
+    assert os.environ["OLCRTC_DIRECT_NATPMP"] == "0"
+    assert os.environ["OLCRTC_DIRECT_PUBLIC_IP"] == "203.0.113.5"
+    monkeypatch.delenv("OLCRTC_DIRECT_PORT", raising=False)
+    monkeypatch.delenv("OLCRTC_DIRECT_NATPMP", raising=False)
+    monkeypatch.delenv("OLCRTC_DIRECT_PUBLIC_IP", raising=False)
