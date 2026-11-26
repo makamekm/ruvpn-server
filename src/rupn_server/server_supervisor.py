@@ -15,6 +15,7 @@ from rupn_server.vp8_log_stats import Vp8StatsSample, last_vp8_stats
 
 class Vp8IngressHealth(NamedTuple):
     in_frames: int
+    direct_in: int
     out_frames: int
     outbound_queue: int
     outbound_queue_cap: int
@@ -53,6 +54,7 @@ class Vp8IngressMonitor:
                 marker_at = time.time() if now is None else now
                 self.health = Vp8IngressHealth(
                     current.in_frames,
+                    current.direct_in,
                     current.out_frames,
                     current.outbound_queue,
                     current.outbound_queue_cap,
@@ -69,38 +71,22 @@ class Vp8IngressMonitor:
     def feed_sample(self, sample: Vp8StatsSample, now: float) -> None:
         self.has_fresh_signal = True
         previous = self.health
-        has_seen_ingress = sample.in_frames > 0 or (previous.has_seen_ingress if previous is not None else False)
-        has_peer_marker = self.has_peer_marker or (previous.has_peer_marker if previous is not None else False)
-        if previous is None:
-            self.health = Vp8IngressHealth(
-                sample.in_frames,
-                sample.out_frames,
-                sample.outbound_queue,
-                sample.outbound_queue_cap,
-                now,
-                has_seen_ingress,
-                has_peer_marker,
-                False,
-            )
-            self.failure = None
-            return
-        if sample.in_frames != previous.in_frames:
-            self.health = Vp8IngressHealth(
-                sample.in_frames,
-                sample.out_frames,
-                sample.outbound_queue,
-                sample.outbound_queue_cap,
-                now,
-                has_seen_ingress,
-                has_peer_marker,
-                sample.out_frames > previous.out_frames,
-            )
-            self.failure = None
-            return
-        outbound_advancing = sample.out_frames > previous.out_frames
-        frozen_since = previous.frozen_since if outbound_advancing else now
+        has_seen_ingress = sample.in_frames > 0 or sample.direct_in > 0 or (
+            previous is not None and previous.has_seen_ingress
+        )
+        has_peer_marker = self.has_peer_marker or (previous is not None and previous.has_peer_marker)
+        outbound_advancing = previous is not None and sample.out_frames > previous.out_frames
+        frozen_since = now
+        if (
+            previous is not None
+            and sample.in_frames == previous.in_frames
+            and sample.direct_in <= previous.direct_in
+            and outbound_advancing
+        ):
+            frozen_since = previous.frozen_since
         self.health = Vp8IngressHealth(
             sample.in_frames,
+            sample.direct_in,
             sample.out_frames,
             sample.outbound_queue,
             sample.outbound_queue_cap,

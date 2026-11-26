@@ -196,3 +196,24 @@ def test_vp8_watchdog_does_not_restart_without_fresh_stats():
         now=120,
         monitor=monitor,
     ) is None
+
+
+def test_direct_ingress_progress_keeps_tunnel_alive():
+    monitor = Vp8IngressMonitor()
+    for second, direct_in in ((0, 2), (65, 3), (130, 4)):
+        monitor.feed(
+            f"2026/11/26 10:00:00 vp8channel stats: out_frames={second + 1} "
+            f"in_frames=1 outbound_queue=0/4096 direct=true direct_in={direct_in}",
+            now=float(second),
+        )
+        assert monitor.evaluate(
+            frozen_after_seconds=60, zero_ingress_after_seconds=30, now=float(second)
+        ) is None
+
+    monitor.feed(
+        "2026/11/26 10:00:00 vp8channel stats: out_frames=199 "
+        "in_frames=1 outbound_queue=0/4096 direct=true direct_in=4",
+        now=195.0,
+    )
+    failure = monitor.evaluate(frozen_after_seconds=60, zero_ingress_after_seconds=30, now=195.0)
+    assert failure is not None and failure.reason == "ingress frozen"

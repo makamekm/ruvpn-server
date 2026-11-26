@@ -12,27 +12,33 @@ class Vp8StatsSample:
     in_frames: int
     outbound_queue: int
     outbound_queue_cap: int
+    direct_in: int = 0
 
 
 _STATS_RE = re.compile(
     r"(?P<timestamp>\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}).*?"
     r"vp8channel stats: out_frames=(?P<out_frames>\d+).*?"
     r"in_frames=(?P<in_frames>\d+).*?"
-    r"outbound_queue=(?P<outbound_queue>\d+)/(?P<outbound_queue_cap>\d+)"
+    r"outbound_queue=(?P<outbound_queue>\d+)/(?P<outbound_queue_cap>\d+)(?P<tail>[^\r\n]*)"
 )
 
 
+_DIRECT_IN_RE = re.compile(r"\bdirect_in=(\d+)\b")
+
+
 def parse_vp8_stats(text: str) -> tuple[Vp8StatsSample, ...]:
-    return tuple(
-        Vp8StatsSample(
+    samples = []
+    for match in _STATS_RE.finditer(text):
+        direct = _DIRECT_IN_RE.search(match.group("tail"))
+        samples.append(Vp8StatsSample(
             timestamp=match.group("timestamp"),
             out_frames=int(match.group("out_frames")),
             in_frames=int(match.group("in_frames")),
             outbound_queue=int(match.group("outbound_queue")),
             outbound_queue_cap=int(match.group("outbound_queue_cap")),
-        )
-        for match in _STATS_RE.finditer(text)
-    )
+            direct_in=int(direct.group(1)) if direct is not None else 0,
+        ))
+    return tuple(samples)
 
 
 def last_vp8_stats(text: str) -> Vp8StatsSample | None:

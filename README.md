@@ -4,6 +4,10 @@ Self-hosted RUPN server runtime. The image supervises one `olcrtc -mode srv` wor
 
 The image contains the current RUPN `olcrtc` server runtime with Telemost VP8 recovery fixes and is published for `linux/amd64` and `linux/arm64`.
 
+## OpenWrt router client
+
+The [OpenWrt and server release](https://github.com/makamekm/ruvpn-server/releases/tag/openwrt-v0.1.0) includes ARM64 and x86-64 OpenWrt clients, a LuCI installer and a Docker Compose server bundle. Follow the [OpenWrt setup guide](openwrt/README.md) to start the server, add its token to the router and route domains through Podkop.
+
 ## Requirements
 
 - A Linux host with Docker and outbound internet access.

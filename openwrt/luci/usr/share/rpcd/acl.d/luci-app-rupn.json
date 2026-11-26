@@ -1,0 +1,22 @@
+{
+    "luci-app-rupn": {
+        "description": "View and manage the RUPN client",
+        "read": {
+            "ubus": {
+                "luci.rupn": [
+                    "status",
+                    "probe",
+                    "logs"
+                ]
+            }
+        },
+        "write": {
+            "ubus": {
+                "luci.rupn": [
+                    "manage",
+                    "save_profile"
+                ]
+            }
+        }
+    }
+}

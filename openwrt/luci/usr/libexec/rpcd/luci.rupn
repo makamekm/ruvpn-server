@@ -1,0 +1,270 @@
+#!/bin/sh
+
+service=/etc/init.d/rupn
+profiles_file=/etc/config/rupn
+tokens=/etc/rupn/tokens
+lock_file=/tmp/rupn-luci.lock
+
+reply() {
+    jq -cn --argjson ok "$1" --arg error "$2" '{ok: $ok, error: $error}'
+}
+
+profile_ids() {
+    uci -q show rupn |
+        awk -F= '$1 ~ /^rupn\.conn_[0-9][0-9][0-9][0-9][0-9]$/ && $2 == "connection" {
+            sub(/^rupn\./, "", $1); print $1
+        }' | sort
+}
+
+valid_profile() {
+    case "$1" in conn_[0-9][0-9][0-9][0-9][0-9]) ;; *) return 1 ;; esac
+    local port="${1#conn_}"
+    [ "$port" -ge 17808 ] && [ "$port" -le 17871 ] &&
+        [ "$(uci -q get "rupn.$1")" = connection ]
+}
+
+service_state() {
+    ubus call service list '{"name":"rupn"}' 2>/dev/null || printf '{}\n'
+}
+
+listeners() {
+    netstat -ltn 2>/dev/null | awk '$4 ~ /:[0-9]+$/ { print $4 }'
+}
+
+status() {
+    local instances addresses autostart domains
+    instances=$(service_state)
+    addresses=$(listeners)
+    autostart=false
+    "$service" enabled >/dev/null 2>&1 && autostart=true
+
+    case "$(uci -q get podkop.RUPN.user_domain_list_type)" in
+        dynamic) domains=$(uci -q get podkop.RUPN.user_domains) ;;
+        text) domains=$(uci -q get podkop.RUPN.user_domains_text) ;;
+        *) domains= ;;
+    esac
+
+    profile_ids | while IFS= read -r id; do
+        valid_profile "$id" || continue
+        local port="${id#conn_}" name enabled ready running pid
+        name=$(uci -q get "rupn.$id.name")
+        enabled=false
+        ready=false
+        running=false
+        [ "$(uci -q get "rupn.$id.enabled")" != 0 ] && enabled=true
+        pid=$(printf '%s\n' "$instances" | jq -r --arg id "$id" \
+            '.rupn.instances[$id] | select(.running == true) | .pid // empty')
+        [ -n "$pid" ] && running=true
+        if [ "$running" = true ] && printf '%s\n' "$addresses" | grep -Fxq "127.0.0.1:$port"; then
+            ready=true
+        fi
+
+        jq -cn --arg id "$id" --arg name "$name" --argjson port "$port" \
+            --argjson enabled "$enabled" --argjson running "$running" --argjson ready "$ready" \
+            --arg pid "$pid" \
+            '{id: $id, name: $name, port: $port, enabled: $enabled, running: $running,
+              ready: $ready, pid: ($pid | tonumber? // null)}'
+    done | jq -cs --argjson autostart "$autostart" --arg domains "$domains" \
+        '{autostart: $autostart, domains: $domains, profiles: .}'
+}
+
+allocate_port() {
+    local port=17808 addresses
+    addresses=$(listeners)
+    while [ "$port" -le 17871 ]; do
+        if ! uci -q get "rupn.conn_$port" >/dev/null &&
+            [ ! -e "$tokens/conn_$port" ] &&
+            ! printf '%s\n' "$addresses" | grep -Eq ":$port$"; then
+            printf '%s\n' "$port"
+            return 0
+        fi
+        port=$((port + 1))
+    done
+    return 1
+}
+
+cleanup() {
+    local file
+    for file in "$request" "$candidate" "$previous_token" "$previous_config"; do
+        if [ -n "$file" ] && [ -e "$file" ]; then unlink "$file"; fi
+    done
+    return 0
+}
+
+snapshot_config() {
+    previous_config=$(mktemp /tmp/rupn-config.XXXXXX) &&
+        cp "$profiles_file" "$previous_config"
+}
+
+restore_config() {
+    uci -q revert rupn
+    cp "$previous_config" "$profiles_file"
+}
+
+apply_config() {
+    uci commit rupn && "$service" reload >/dev/null 2>&1
+}
+
+save_profile() {
+    local id port name enabled token_length
+    id=$(jq -er '.id // "" | strings' "$request") || { reply false invalid_profile; return; }
+    name=$(jq -er '.name | strings | select(length >= 1 and length <= 64 and (explode | all(. >= 32 and . != 127)))' "$request") ||
+        { reply false invalid_name; return; }
+    token_length=$(jq -er '.token // "" | strings | length' "$request") ||
+        { reply false invalid_token; return; }
+    if [ -z "$id" ]; then
+        port=$(allocate_port) || { reply false no_ports; return; }
+        id="conn_$port"
+        [ "$token_length" -gt 0 ] || { reply false missing_token; return; }
+        enabled=$(jq -er '.enabled | select(. == 0 or . == 1)' "$request") ||
+            { reply false invalid_action; return; }
+    else
+        valid_profile "$id" || { reply false invalid_profile; return; }
+        enabled=$(uci -q get "rupn.$id.enabled") || enabled=1
+    fi
+
+    if [ "$token_length" -gt 0 ]; then
+        candidate=$(mktemp "$tokens/.token.XXXXXX") || { reply false save_failed; return; }
+        if ! jq -er '.token | strings | select(length <= 8192)' "$request" >"$candidate" ||
+            ! /usr/bin/rupn -check -token-file "$candidate" >/dev/null 2>&1; then
+            reply false invalid_token
+            return
+        fi
+        if [ -f "$tokens/$id" ]; then
+            previous_token=$(mktemp "$tokens/.previous.XXXXXX") &&
+                cp "$tokens/$id" "$previous_token" || { reply false save_failed; return; }
+        fi
+    elif [ ! -s "$tokens/$id" ]; then
+        reply false missing_token
+        return
+    fi
+
+    snapshot_config || { reply false save_failed; return; }
+    if [ -n "$candidate" ]; then
+        mv "$candidate" "$tokens/$id" || { reply false save_failed; return; }
+    fi
+
+    if ! {
+        uci set "rupn.$id=connection" &&
+            uci set "rupn.$id.name=$name" &&
+            uci set "rupn.$id.enabled=$enabled" &&
+            apply_config
+    }; then
+        restore_config
+        if [ -n "$previous_token" ]; then
+            mv "$previous_token" "$tokens/$id"
+        elif [ -n "$candidate" ]; then
+            unlink "$tokens/$id"
+        fi
+        "$service" reload >/dev/null 2>&1
+        reply false save_failed
+        return
+    fi
+    jq -cn --arg id "$id" '{ok: true, id: $id}'
+}
+
+podkop_uses_port() {
+    local config
+    if uci -q show podkop | grep -Eq "(127\\.0\\.0\\.1|localhost):$1([^0-9]|$)"; then
+        return 0
+    fi
+    config=$(uci -q get podkop.settings.config_path) || return 1
+    [ -r "$config" ] && jq -e --argjson port "$1" 'any(.outbounds[]?;
+        (.server == "127.0.0.1" or .server == "localhost") and .server_port == $port)' \
+        "$config" >/dev/null 2>&1
+}
+
+manage() {
+    local action id value
+    action=$(jq -er '.action | strings' "$request") || { reply false invalid_action; return; }
+    case "$action" in
+        enable_boot|disable_boot)
+            case "$action" in enable_boot) value=enable ;; *) value=disable ;; esac
+            if "$service" "$value" >/dev/null 2>&1; then reply true ''; else reply false service_failed; fi
+            return
+            ;;
+    esac
+    id=$(jq -er '.id | strings' "$request") || { reply false invalid_profile; return; }
+    valid_profile "$id" || { reply false invalid_profile; return; }
+
+    case "$action" in
+        start|stop|delete)
+            if [ "$action" = delete ] && podkop_uses_port "${id#conn_}"; then
+                reply false used_by_podkop
+                return
+            fi
+            snapshot_config || { reply false save_failed; return; }
+            if [ "$action" = delete ]; then
+                uci delete "rupn.$id"
+            else
+                value=0
+                [ "$action" = start ] && value=1
+                uci set "rupn.$id.enabled=$value"
+            fi && apply_config || {
+                restore_config
+                "$service" reload >/dev/null 2>&1
+                reply false service_failed
+                return
+            }
+            if [ "$action" = delete ] && [ -e "$tokens/$id" ]; then
+                unlink "$tokens/$id" || { reply false save_failed; return; }
+            fi
+            reply true ''
+            ;;
+        restart)
+            if [ "$(uci -q get "rupn.$id.enabled")" = 0 ]; then
+                reply false invalid_action
+                return
+            fi
+            ubus call service delete "$(jq -cn --arg id "$id" '{name:"rupn",instance:$id}')" >/dev/null 2>&1
+            if "$service" reload >/dev/null 2>&1; then reply true ''; else reply false service_failed; fi
+            ;;
+        *) reply false invalid_action ;;
+    esac
+}
+
+probe() {
+    local id result
+    id=$(jq -er '.id | strings') || { reply false invalid_profile; return; }
+    valid_profile "$id" || { reply false invalid_profile; return; }
+    if ! listeners | grep -Fxq "127.0.0.1:${id#conn_}"; then
+        reply false socks_unavailable
+        return
+    fi
+    result=$(curl -4fsS --noproxy '' --socks5-hostname "127.0.0.1:${id#conn_}" \
+        --connect-timeout 5 --max-time 7 -o /dev/null -w '%{http_code} %{time_total}' \
+        https://example.com/ 2>/dev/null) || { reply false probe_failed; return; }
+
+    jq -cn --arg code "${result%% *}" --arg seconds "${result#* }" \
+        '{ok: true, code: $code, seconds: ($seconds | tonumber)}'
+}
+
+logs() {
+    local id
+    id=$(jq -er '.id | strings') || { reply false invalid_profile; return; }
+    valid_profile "$id" || { reply false invalid_profile; return; }
+    logread -e 'rupn\[' 2>/dev/null | grep -F "[$id]" | tail -80 |
+        sed -E 's#olcrtc://[^[:space:]]+#<connection hidden>#g
+                s#[[:alnum:]_-]{12,}\.[[:alnum:]_-]{12,}\.[[:alnum:]_-]{12,}#<token hidden>#g
+                s#[[:xdigit:]]{64,}#<key hidden>#g
+                s#(https?://[^[:space:]?]+)\?[^[:space:]]+#\1?<parameters hidden>#g
+                s#(token|secret|password|authorization|key)([=:][[:space:]]*)[^[:space:],]+#\1\2<hidden>#gI' |
+        jq -Rs '{ok: true, text: .}'
+}
+
+case "$1:$2" in
+    list:) printf '%s\n' '{"status":{},"logs":{"id":""},"probe":{"id":""},"manage":{"id":"","action":""},"save_profile":{"id":"","name":"","token":"","enabled":0}}' ;;
+    call:status) status ;;
+    call:logs) logs ;;
+    call:probe) probe ;;
+    call:manage|call:save_profile)
+        umask 077
+        exec 9>"$lock_file"
+        flock -n 9 || { reply false busy; exit 0; }
+        request=$(mktemp /tmp/rupn-request.XXXXXX) || { reply false save_failed; exit 0; }
+        trap cleanup EXIT
+        cat >"$request"
+        "$2"
+        ;;
+    *) exit 1 ;;
+esac

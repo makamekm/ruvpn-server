@@ -1,0 +1,41 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+USE_PROCD=1
+
+start_instance() {
+    local id="$1" token="$2" port="$3"
+    [ -s "$token" ] || return 0
+
+    procd_open_instance "$id"
+    procd_set_param command /usr/bin/rupn -token-file "$token" -port "$port" -profile "$id"
+    procd_set_param file "$token" /usr/bin/rupn
+    procd_set_param respawn 3600 5 0
+    procd_set_param term_timeout 10
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_close_instance
+}
+
+start_connection() {
+    local id="$1" enabled port
+    case "$id" in conn_[0-9][0-9][0-9][0-9][0-9]) ;; *) return 0 ;; esac
+    port=${id#conn_}
+    [ "$port" -ge 17808 ] && [ "$port" -le 17871 ] || return 0
+    config_get_bool enabled "$id" enabled 1
+    [ "$enabled" = 1 ] && start_instance "$id" "/etc/rupn/tokens/$id" "$port"
+    return 0
+}
+
+start_service() {
+    if [ -f /etc/config/rupn ]; then
+        config_load rupn
+        config_foreach start_connection connection
+    else
+        start_instance conn_17808 /etc/rupn/token 17808
+    fi
+}
+
+reload_service() {
+    start
+}

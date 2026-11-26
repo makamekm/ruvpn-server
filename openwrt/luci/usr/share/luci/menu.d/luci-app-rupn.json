@@ -1,0 +1,8 @@
+{
+    "admin/status/rupn": {
+        "title": "RUPN",
+        "order": 7,
+        "action": { "type": "view", "path": "status/rupn" },
+        "depends": { "acl": ["luci-app-rupn"] }
+    }
+}

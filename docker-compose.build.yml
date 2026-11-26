@@ -1,0 +1,11 @@
+services:
+  rupn-server:
+    build: .
+    container_name: rupn-server
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - rupn-server-state:/var/lib/rupn-server
+
+volumes:
+  rupn-server-state:
